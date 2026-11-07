@@ -1,0 +1,196 @@
+#Requires -Version 5.1
+<#
+.SYNOPSIS
+Creates the isolated Hyper-V test VM and its local answer-file ISO.
+.DESCRIPTION
+Run through run-elevated.ps1. CheckOnly performs preflight without creating a VM.
+The installation ISO is hash-checked and remains unchanged. Only a newly created
+VHDX is attached as a hard disk. Existing VMs and working directories are refused.
+Secrets remain in an ACL-restricted local directory, never in Git or parameters.
+#>
+[CmdletBinding(SupportsShouldProcess = $true)]
+param(
+    [Parameter(Mandatory = $true)] [string] $IsoPath,
+    [ValidateSet('Baseline', 'Configured')] [string] $VMProfile = 'Baseline',
+    [switch] $CheckOnly
+)
+
+function Get-TestVMConfiguration {
+    param([ValidateSet('Baseline', 'Configured')] [string] $VMProfile = 'Baseline')
+    $root = Split-Path $PSScriptRoot -Parent
+    $vm = Import-PowerShellDataFile -LiteralPath (Join-Path $root 'config\test-vm.psd1')
+    $windows = Import-PowerShellDataFile -LiteralPath (Join-Path $root 'config\windows.psd1')
+    $source = Get-Content -LiteralPath (Join-Path $root 'config\source-image.lock.json') -Raw | ConvertFrom-Json
+    if ($windows.Edition -cne 'Pro' -or $windows.Architecture -cne 'x64' -or $windows.Localization.UiLanguage -cne 'en-US' -or $source.selectedImage.editionId -cne 'Professional' -or $source.selectedImage.architecture -cne 'x64' -or $source.selectedImage.defaultLanguage -cne 'en-US') { throw 'The test installer requires the pinned Pro/x64/en-US profile.' }
+    if ($vm.Name -notmatch '^[A-Za-z0-9-]{1,40}$' -or $vm.ComputerName -notmatch '^[A-Za-z][A-Za-z0-9-]{0,14}$' -or $vm.AccountName -notmatch '^[A-Za-z][A-Za-z0-9-]{0,19}$') { throw 'Invalid VM, computer, or account name.' }
+    if ($vm.ProcessorCount -lt 2 -or $vm.MemoryBytes -lt 4GB -or $vm.DiskBytes -lt 64GB -or $vm.DiskBytes % 1MB -ne 0) { throw 'The VM requires at least 2 processors, 4 GiB RAM, and a whole-MiB disk of at least 64 GiB.' }
+    $directory = Join-Path $root '.local\vm\windows11-pro'
+    $imageIndex = $source.selectedImage.index
+    if ($VMProfile -eq 'Configured') {
+        $vm.Name += '-Configured'
+        $directory += '-configured'
+        $imageIndex = 1
+    }
+    @{ root = $root; vm = $vm; windows = $windows; source = $source; directory = $directory; profile = $VMProfile; imageIndex = $imageIndex }
+}
+
+function Get-TestVMAnswer {
+    [OutputType([string])]
+    param($Settings, [pscredential] $Credential)
+    $xml = [xml](Get-Content -LiteralPath (Join-Path $Settings.root 'setup\vm\autounattend.xml') -Raw)
+    $values = @{
+        '__INPUT_LOCALES__'   = (@($Settings.windows.Localization.InputLocales) -join ';')
+        '__WINDOWS_SIZE_MB__' = [string]([long]($Settings.vm.DiskBytes / 1MB) - 260 - 16 - 2048 - 4)
+        '__IMAGE_INDEX__'     = [string]$Settings.imageIndex
+        '__COMPUTER_NAME__'   = $Settings.vm.ComputerName
+        '__TIME_ZONE__'       = $Settings.vm.TimeZone
+        '__ACCOUNT_NAME__'    = $Settings.vm.AccountName
+        # Setup requires the actual password; this XML is written only to private media.
+        '__PASSWORD__'        = $Credential.GetNetworkCredential().Password
+    }
+    foreach ($node in @($xml.SelectNodes('//*[not(*)]'))) {
+        if ($values.ContainsKey($node.InnerText)) { $node.InnerText = $values[$node.InnerText] }
+    }
+    if ($xml.OuterXml -match '__[A-Z_]+__') { throw 'Unresolved answer-file placeholder.' }
+    $xml.OuterXml
+}
+
+function Set-TestVMPrivateDirectory {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Protects the newly created local secret directory before any secret is written; the caller confirms the complete creation operation.')]
+    param([string] $Path)
+    [IO.Directory]::CreateDirectory($Path) | Out-Null
+    $acl = [Security.AccessControl.DirectorySecurity]::new()
+    $acl.SetAccessRuleProtection($true, $false)
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    try { $owner = $identity.User } finally { $identity.Dispose() }
+    $acl.SetOwner($owner)
+    foreach ($sid in @($owner, [Security.Principal.SecurityIdentifier]::new('S-1-5-18'), [Security.Principal.SecurityIdentifier]::new('S-1-5-32-544'))) {
+        $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($sid, 'FullControl', 'ContainerInherit, ObjectInherit', 'None', 'Allow'))
+    }
+    Set-Acl -LiteralPath $Path -AclObject $acl
+}
+
+function Get-TestVMPreflight {
+    param($Settings, [string] $IsoPath)
+    Import-Module Hyper-V -ErrorAction Stop
+    Get-VMHost -ErrorAction Stop | Out-Null
+    $system = Get-CimInstance Win32_ComputerSystem -ErrorAction Stop
+    $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+    $cpu = @(Get-CimInstance Win32_Processor -ErrorAction Stop)
+    $existing = @(Get-VM -ErrorAction Stop | Where-Object { $_.Name -eq $Settings.vm.Name })
+    if ($existing.Count -gt 0 -or (Test-Path -LiteralPath $Settings.directory)) { throw 'The named VM or its working directory already exists; no existing installation will be replaced.' }
+    if (-not $system.HypervisorPresent -or @($cpu | Where-Object { $_.Architecture -ne 9 }).Count -gt 0) { throw 'An active Hyper-V hypervisor on an x64 host is required.' }
+    if ([long]$system.TotalPhysicalMemory -lt ($Settings.vm.MemoryBytes + 4GB) -or ([long]$os.FreePhysicalMemory * 1KB) -lt ($Settings.vm.MemoryBytes + 2GB)) { throw 'Insufficient host memory for the configured VM and host reserve.' }
+    if ($system.NumberOfLogicalProcessors -lt $Settings.vm.ProcessorCount) { throw 'Insufficient host logical processors.' }
+    if ($Settings.vm.ExposeVirtualizationExtensions -and @($cpu | Where-Object { $_.Manufacturer -notin @('GenuineIntel', 'AuthenticAMD') }).Count -gt 0) { throw 'Nested virtualization requires a reviewed Intel or AMD host.' }
+    if ($Settings.vm.ExposeVirtualizationExtensions -and @($cpu | Where-Object { $_.Manufacturer -eq 'AuthenticAMD' }).Count -gt 0 -and [int]$os.BuildNumber -lt 22000) { throw 'Nested virtualization on AMD requires Windows 11 or a separately reviewed server host.' }
+    # Configured media already exists; reserve room for the fresh guest and updates.
+    $requiredFreeSpace = 60GB
+    if ($Settings.profile -eq 'Configured') { $requiredFreeSpace = 40GB }
+    $drive = [IO.DriveInfo]::new([IO.Path]::GetPathRoot($Settings.directory))
+    if ($drive.DriveFormat -notin @('NTFS', 'ReFS') -or $drive.AvailableFreeSpace -lt $requiredFreeSpace) { throw ('The VM volume must use NTFS/ReFS and have at least {0} GiB free.' -f ($requiredFreeSpace / 1GB)) }
+    $iso = (Resolve-Path -LiteralPath $IsoPath -ErrorAction Stop).ProviderPath
+    if ($iso.StartsWith($Settings.directory + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'The source ISO must remain outside the VM directory.' }
+    $expectedIsoHash = $Settings.source.iso.sha256
+    $expectedIsoSize = $Settings.source.iso.sizeBytes
+    if ($Settings.profile -eq 'Configured') {
+        $media = Get-Content -LiteralPath (Join-Path $Settings.root '.local\media\windows11-pro\operation.json') -Raw | ConvertFrom-Json
+        $build = Get-Content -LiteralPath (Join-Path $Settings.root '.local\build\windows11-pro\operation.json') -Raw | ConvertFrom-Json
+        if ($media.status -cne 'Succeeded' -or @($media.cleanupErrors).Count -ne 0 -or $media.imageIndex -ne 1 -or $media.filesVerified -lt 1 -or $media.sourceIsoSha256 -cne $Settings.source.iso.sha256 -or $build.status -cne 'Succeeded' -or $media.outputWimSha256 -cne $build.outputWimSha256 -or (Get-FileHash -LiteralPath (Join-Path $Settings.root 'config\windows.psd1') -Algorithm SHA256).Hash -cne $media.configurationSha256) { throw 'Configured media is unverified or stale; rebuild it before VM creation.' }
+        $expectedIsoHash = $media.isoSha256
+        $expectedIsoSize = $media.isoSizeBytes
+        $baseline = Get-TestVMConfiguration
+        $baselineMetadata = Get-Content -LiteralPath (Join-Path $baseline.directory 'vm.json') -Raw | ConvertFrom-Json
+        $checkpoint = Get-Content -LiteralPath (Join-Path $Settings.root '.local\vm-baseline\checkpoint.json') -Raw | ConvertFrom-Json
+        $baselineVM = Get-VM -Id $baselineMetadata.vmId
+        if ($baselineVM.Name -cne $baseline.vm.Name -or $baselineVM.State -ne 'Off' -or $checkpoint.vmId -cne $baselineMetadata.vmId -or @(Get-VMSnapshot -VM $baselineVM | Where-Object { [string]$_.Id -ceq $checkpoint.id }).Count -ne 1) { throw 'Keep the recorded baseline VM powered off with its clean checkpoint intact.' }
+    }
+    if ((Get-Item -LiteralPath $iso).Length -ne $expectedIsoSize -or (Get-FileHash -LiteralPath $iso -Algorithm SHA256).Hash -cne $expectedIsoHash) { throw 'Installation ISO does not match the selected profile evidence.' }
+    $toolchain = Get-Content -LiteralPath (Join-Path $Settings.root 'config\toolchain.lock.json') -Raw | ConvertFrom-Json
+    $oscdimg = $toolchain.adk.oscdimg
+    if ((Get-FileHash -LiteralPath $oscdimg.path -Algorithm SHA256).Hash -cne $oscdimg.sha256) { throw 'Oscdimg does not match its lock file.' }
+    $signature = Get-AuthenticodeSignature -LiteralPath $oscdimg.path
+    if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') { throw 'Oscdimg must have a valid Microsoft signature.' }
+    [ordered]@{
+        name = $Settings.vm.Name; generation = 2; processors = $Settings.vm.ProcessorCount
+        memoryGiB = $Settings.vm.MemoryBytes / 1GB; diskGiB = $Settings.vm.DiskBytes / 1GB
+        hostMemoryGiB = [math]::Round($system.TotalPhysicalMemory / 1GB, 1)
+        hostAvailableMemoryGiB = [math]::Round(([long]$os.FreePhysicalMemory * 1KB) / 1GB, 1)
+        hostLogicalProcessors = $system.NumberOfLogicalProcessors
+        hostFreeDiskGiB = [math]::Round($drive.AvailableFreeSpace / 1GB, 1)
+        isoPath = $iso; isoSha256 = $expectedIsoHash; oscdimgPath = $oscdimg.path
+        profile = $Settings.profile; imageIndex = $Settings.imageIndex; requiredFreeDiskGiB = $requiredFreeSpace / 1GB
+        nestedVirtualization = $Settings.vm.ExposeVirtualizationExtensions; network = 'Disconnected'
+    }
+}
+
+if ($MyInvocation.InvocationName -eq '.') { return }
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+if ($PSVersionTable.PSEdition -ne 'Desktop' -or -not [Environment]::Is64BitProcess) { throw 'Use 64-bit Windows PowerShell 5.1.' }
+$identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+try { $admin = ([Security.Principal.WindowsPrincipal]::new($identity)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) }
+finally { $identity.Dispose() }
+if (-not $admin) { throw 'Administrator privileges are required; use run-elevated.ps1.' }
+$settings = Get-TestVMConfiguration -VMProfile $VMProfile
+$ancestor = $settings.directory
+while ($ancestor) {
+    if ((Test-Path -LiteralPath $ancestor) -and ((Get-Item -LiteralPath $ancestor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'VM paths must not contain reparse points.' }
+    $ancestor = [IO.Path]::GetDirectoryName($ancestor)
+}
+$preflight = Get-TestVMPreflight -Settings $settings -IsoPath $IsoPath
+if ($CheckOnly) { $preflight; return }
+if (-not $PSCmdlet.ShouldProcess($settings.directory, 'Create isolated Hyper-V VM, new VHDX, local credentials, and answer-file ISO')) { return }
+$parent = Split-Path $settings.directory -Parent
+[IO.Directory]::CreateDirectory($parent) | Out-Null
+$lockPath = $settings.directory + '.lock'
+if ((Test-Path -LiteralPath $lockPath) -and ((Get-Item -LiteralPath $lockPath -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'VM lock must not be a reparse point.' }
+$lock = [IO.FileStream]::new($lockPath, [IO.FileMode]::CreateNew, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None, 4096, [IO.FileOptions]::DeleteOnClose)
+try {
+    if (Test-Path -LiteralPath $settings.directory) { throw 'The VM directory was created concurrently; refusing to reuse it.' }
+    Set-TestVMPrivateDirectory -Path $settings.directory
+    $secretDirectory = Join-Path $settings.directory 'secrets'
+    Set-TestVMPrivateDirectory -Path $secretDirectory
+    $mediaDirectory = Join-Path $settings.directory 'media'
+    [IO.Directory]::CreateDirectory($mediaDirectory) | Out-Null
+    $bytes = [byte[]]::new(24)
+    $rng = [Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $rng.GetBytes($bytes) } finally { $rng.Dispose() }
+    $securePassword = [Security.SecureString]::new()
+    foreach ($character in ('Vm!9' + [Convert]::ToBase64String($bytes)).ToCharArray()) { $securePassword.AppendChar($character) }
+    $securePassword.MakeReadOnly()
+    $credential = [pscredential]::new($settings.vm.AccountName, $securePassword)
+    $credential | Export-Clixml -LiteralPath (Join-Path $secretDirectory 'credential.clixml')
+    $answer = Get-TestVMAnswer -Settings $settings -Credential $credential
+    [IO.File]::WriteAllText((Join-Path $mediaDirectory 'autounattend.xml'), $answer, [Text.UTF8Encoding]::new($false))
+    $answer = $null
+    $seedIso = Join-Path $settings.directory 'answer.iso'
+    & $preflight.oscdimgPath -u2 -udfver102 -lWIN11ANSWER $mediaDirectory $seedIso | Out-Null
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $seedIso)) { throw 'Answer-file ISO creation failed.' }
+    $vhdPath = Join-Path $settings.directory 'system.vhdx'
+    $vm = New-VM -Name $settings.vm.Name -Generation 2 -MemoryStartupBytes $settings.vm.MemoryBytes -NewVHDPath $vhdPath -NewVHDSizeBytes $settings.vm.DiskBytes -Path $settings.directory
+    Set-VMMemory -VM $vm -DynamicMemoryEnabled $false
+    Set-VMProcessor -VM $vm -Count $settings.vm.ProcessorCount -ExposeVirtualizationExtensions $settings.vm.ExposeVirtualizationExtensions
+    Set-VM -VM $vm -AutomaticCheckpointsEnabled $false -CheckpointType Standard -AutomaticStartAction Nothing -AutomaticStopAction ShutDown
+    Set-VMKeyProtector -VM $vm -NewLocalKeyProtector
+    Enable-VMTPM -VM $vm
+    $vmAccount = [Security.Principal.NTAccount]::new('NT VIRTUAL MACHINE', $vm.Id.ToString())
+    $vmSid = $vmAccount.Translate([Security.Principal.SecurityIdentifier])
+    $acl = Get-Acl -LiteralPath $settings.directory
+    $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($vmSid, 'ReadAndExecute', 'ContainerInherit, ObjectInherit', 'None', 'Allow'))
+    Set-Acl -LiteralPath $settings.directory -AclObject $acl
+    $installationDvd = Add-VMDvdDrive -VM $vm -Path $preflight.isoPath -Passthru
+    Add-VMDvdDrive -VM $vm -Path $seedIso | Out-Null
+    Set-VMFirmware -VM $vm -EnableSecureBoot On -SecureBootTemplate MicrosoftWindows -FirstBootDevice $installationDvd
+    if (@(Get-VMHardDiskDrive -VM $vm).Count -ne 1 -or (Get-VMHardDiskDrive -VM $vm).Path -ine $vhdPath -or @(Get-VMNetworkAdapter -VM $vm | Where-Object { $_.SwitchName }).Count -ne 0) { throw 'Unexpected disk or network attachment; do not start this VM.' }
+    $record = [ordered]@{
+        schemaVersion = 1; status = 'Created'; vmId = [string]$vm.Id; name = $vm.Name; state = 'Off'
+        directory = $settings.directory; vhdPath = $vhdPath; seedIsoPath = $seedIso
+        isoSha256 = $preflight.isoSha256; seedIsoSha256 = (Get-FileHash -LiteralPath $seedIso -Algorithm SHA256).Hash
+        settings = $settings.vm; createdAtUtc = [DateTime]::UtcNow.ToString('o')
+        profile = $settings.profile; imageIndex = $settings.imageIndex
+    }
+    $record | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $settings.directory 'vm.json') -Encoding UTF8
+    Write-Output ('Created {0}, powered off, with one new VHDX and disconnected networking. Metadata: {1}' -f $vm.Name, (Join-Path $settings.directory 'vm.json'))
+}
+finally { $lock.Dispose() }

@@ -1,0 +1,220 @@
+#Requires -Version 5.1
+#Requires -RunAsAdministrator
+<#
+.SYNOPSIS
+Packages the verified configured WIM with optional recovery compression to ESD.
+.DESCRIPTION
+Creates a generic bootable ISO without credentials or a disk-wiping answer file.
+Recreates only its own .local/media output, checks every embedded file by hash,
+and removes the staging tree after verification. VM answer media stays separate.
+#>
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory = $true)] [string] $IsoPath,
+    [switch] $Compress,
+    [string] $OutputDirectory = (Join-Path $PSScriptRoot '..\.local\media\windows11-pro')
+)
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+if ($PSVersionTable.PSEdition -ne 'Desktop' -or -not [Environment]::Is64BitProcess) { throw 'Use native 64-bit Windows PowerShell 5.1.' }
+$root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$output = [IO.Path]::GetFullPath($OutputDirectory).TrimEnd('\')
+$mediaRoot = Join-Path $root '.local\media'
+if ([IO.Path]::GetDirectoryName($output) -ine $mediaRoot) { throw 'OutputDirectory must be directly under .local/media.' }
+foreach ($target in @($output, ($output + '.lock'))) {
+    $ancestor = $target
+    while ($ancestor) {
+        if ((Test-Path -LiteralPath $ancestor) -and ((Get-Item -LiteralPath $ancestor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Media output paths must not contain reparse points.' }
+        $ancestor = [IO.Path]::GetDirectoryName($ancestor)
+    }
+}
+$sourceIso = (Resolve-Path -LiteralPath $IsoPath).ProviderPath
+if ($sourceIso.StartsWith($output + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Source ISO must be outside the media output.' }
+$buildDirectory = Join-Path $root '.local\build\windows11-pro'
+$wimPath = Join-Path $buildDirectory 'install.wim'
+$source = Get-Content -LiteralPath (Join-Path $root 'config\source-image.lock.json') -Raw | ConvertFrom-Json
+$toolchain = Get-Content -LiteralPath (Join-Path $root 'config\toolchain.lock.json') -Raw | ConvertFrom-Json
+$oscdimg = $toolchain.adk.oscdimg
+$dismExe = Join-Path $toolchain.adk.dismDirectory 'dism.exe'
+$iso = Join-Path $output 'windows11-pro.iso'
+$tree = Join-Path $output 'files'
+$lock = $null
+$buildLock = $null
+$sourceAttached = $false
+$targetAttached = $false
+$prepared = $false
+$operationPath = Join-Path $output 'operation.json'
+$operation = [ordered]@{ schemaVersion = 1; status = 'Running'; stage = 'Preflight'; startedAtUtc = [DateTime]::UtcNow.ToString('o'); sourceIsoSha256 = $source.iso.sha256; configurationSha256 = $null; outputWimSha256 = $null; imageIndex = 1; isoPath = $iso; isoSha256 = $null; isoSizeBytes = $null; filesVerified = 0; error = $null; cleanupErrors = @() }
+function Save-MediaOperation {
+    $operation | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $operationPath -Encoding UTF8
+}
+function Write-MediaStage {
+    param([string] $Name)
+    $operation.stage = $Name
+    Save-MediaOperation
+    Write-Output $Name
+}
+function Get-MediaVolumeRoot {
+    param($DiskImage)
+    $volumes = @($DiskImage | Get-Volume | Where-Object { $_.DriveLetter })
+    if ($volumes.Count -ne 1) { throw 'Expected one ISO volume with a drive letter.' }
+    '{0}:\' -f $volumes[0].DriveLetter
+}
+function Get-MediaImageInfo {
+    param([string] $ImagePath)
+    $arguments = @('/Get-ImageInfo', ('/ImageFile:' + $ImagePath), '/English', ('/LogPath:' + $dismLog), ('/ScratchDir:' + $scratch))
+    $listing = @(& $dismExe @arguments)
+    if ($LASTEXITCODE -ne 0 -or @($listing | Where-Object { $_ -match '^\s*Index\s*:' }).Count -ne 1) { throw 'Expected one readable installation image.' }
+    $details = @(& $dismExe @arguments /Index:1)
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot read installation image metadata.' }
+    $fields = @{}
+    foreach ($line in $details) {
+        $fieldMatch = [regex]::Match($line, '^\s*([^:]+?)\s*:\s*(.*?)\s*$')
+        if ($fieldMatch.Success) { $fields[$fieldMatch.Groups[1].Value] = $fieldMatch.Groups[2].Value }
+    }
+    foreach ($key in @('Name', 'Architecture', 'Version', 'ServicePack Build', 'Edition')) {
+        if (-not $fields.ContainsKey($key)) { throw ('Missing image metadata field: ' + $key) }
+    }
+    if (($details -join "`n") -notmatch ([regex]::Escape($source.selectedImage.defaultLanguage) + '\s+\(Default\)')) { throw 'Image default language differs from the source lock.' }
+    [ordered]@{
+        name = $fields.Name; architecture = $fields.Architecture; edition = $fields.Edition
+        version = $fields.Version + '.' + $fields['ServicePack Build']; defaultLanguage = $source.selectedImage.defaultLanguage
+    }
+}
+[IO.Directory]::CreateDirectory($mediaRoot) | Out-Null
+try {
+    $lock = [IO.FileStream]::new(($output + '.lock'), [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None, 4096, [IO.FileOptions]::DeleteOnClose)
+    $buildLock = [IO.FileStream]::new(($buildDirectory + '.lock'), [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None, 4096, [IO.FileOptions]::DeleteOnClose)
+    $build = Get-Content -LiteralPath (Join-Path $buildDirectory 'operation.json') -Raw | ConvertFrom-Json
+    $checks = @(Get-Content -LiteralPath (Join-Path $buildDirectory 'verification.json') -Raw | ConvertFrom-Json)
+    if ($build.status -cne 'Succeeded' -or -not $build.committed -or $build.outputImageIndex -ne 1 -or @($build.cleanupErrors).Count -ne 0 -or $checks.Count -eq 0 -or @($checks | Where-Object { -not $_.passed }).Count -gt 0) { throw 'A successfully saved, verified, and unmounted configured WIM is required.' }
+    if ($build.sourceIsoSha256 -cne $source.iso.sha256 -or (Get-FileHash -LiteralPath $sourceIso -Algorithm SHA256).Hash -cne $source.iso.sha256) { throw 'Source ISO does not match the configured build and source lock.' }
+    if ((Get-FileHash -LiteralPath (Join-Path $root 'config\windows.psd1') -Algorithm SHA256).Hash -cne $build.configurationSha256) { throw 'Configuration changed since the WIM build.' }
+    if ((Get-FileHash -LiteralPath $wimPath -Algorithm SHA256).Hash -cne $build.outputWimSha256) { throw 'Configured WIM changed after verification.' }
+    foreach ($toolFile in $toolchain.adk.files.PSObject.Properties) {
+        if ((Get-FileHash -LiteralPath (Join-Path $toolchain.adk.dismDirectory $toolFile.Name) -Algorithm SHA256).Hash -cne $toolFile.Value) { throw ('DISM toolchain fingerprint mismatch: ' + $toolFile.Name) }
+    }
+    if ((Get-FileHash -LiteralPath $oscdimg.path -Algorithm SHA256).Hash -cne $oscdimg.sha256) { throw 'Oscdimg differs from the toolchain lock.' }
+    $signature = Get-AuthenticodeSignature -LiteralPath $oscdimg.path
+    if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') { throw 'Oscdimg must have a valid Microsoft signature.' }
+    Import-Module Storage
+    if ((Test-Path -LiteralPath $iso) -and (Get-DiskImage -ImagePath $iso).Attached) { throw 'The previous output ISO is attached; cleanup is refused.' }
+    if (Test-Path -LiteralPath $output) {
+        if (Get-Module -ListAvailable Hyper-V) {
+            Import-Module Hyper-V
+            foreach ($vm in @(Get-VM)) {
+                if (@(Get-VMDvdDrive -VM $vm | Where-Object { $_.Path -and $_.Path.StartsWith($output + '\', [StringComparison]::OrdinalIgnoreCase) }).Count -gt 0) { throw 'A VM references media in the output directory; detach it before rebuilding.' }
+            }
+        }
+        $resolvedOutput = (Resolve-Path -LiteralPath $output).ProviderPath
+        if ([IO.Path]::GetDirectoryName($resolvedOutput) -ine $mediaRoot) { throw 'Unsafe media cleanup path.' }
+        if (@(Get-ChildItem -LiteralPath $resolvedOutput -Force -Recurse | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint }).Count -gt 0) { throw 'Media contents must not contain reparse points.' }
+        Remove-Item -LiteralPath $resolvedOutput -Recurse -Force
+    }
+    # Budget two payload/setup copies plus scratch space; compression normally reduces this.
+    $requiredSpace = 2 * ((Get-Item -LiteralPath $wimPath).Length + $source.iso.sizeBytes - $source.observedMedia.installationImageSizeBytes) + 2GB
+    if ([IO.DriveInfo]::new([IO.Path]::GetPathRoot($output)).AvailableFreeSpace -lt $requiredSpace) { throw ('At least {0:N1} GiB free space is required to stage and package media.' -f ($requiredSpace / 1GB)) }
+    [IO.Directory]::CreateDirectory($tree) | Out-Null
+    $prepared = $true
+    $operation.configurationSha256 = $build.configurationSha256
+    $operation.outputWimSha256 = $build.outputWimSha256
+    $operation['oscdimgSha256'] = $oscdimg.sha256
+    $operation['dismSha256'] = $toolchain.adk.files.'dism.exe'
+    $scratch = Join-Path $output 'scratch'
+    [IO.Directory]::CreateDirectory($scratch) | Out-Null
+    $dismLog = Join-Path $output 'dism.log'
+    Write-MediaStage 'Attach original Microsoft ISO read-only'
+    $sourceDisk = Get-DiskImage -ImagePath $sourceIso
+    if (-not $sourceDisk.Attached) { $sourceDisk = Mount-DiskImage -ImagePath $sourceIso -StorageType ISO -Access ReadOnly -PassThru; $sourceAttached = $true }
+    $sourceRoot = Get-MediaVolumeRoot $sourceDisk
+    Write-MediaStage 'Copy original Setup files'
+    $manifest = @(foreach ($file in @(Get-ChildItem -LiteralPath $sourceRoot -Recurse -File -Force)) {
+            $relative = $file.FullName.Substring($sourceRoot.Length)
+            if ($relative.Replace('\', '/') -ieq $source.selectedImage.path.Replace('\', '/')) { continue }
+            $destination = Join-Path $tree $relative
+            [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($destination)) | Out-Null
+            Copy-Item -LiteralPath $file.FullName -Destination $destination
+            [pscustomobject]@{ path = $relative; sha256 = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash; origin = 'MicrosoftISO' }
+        })
+    $inputMetadata = Get-MediaImageInfo -ImagePath $wimPath
+    $payloadName = 'install.wim'
+    $outputMetadata = $inputMetadata
+    $origin = 'ConfiguredWIM'
+    if ($Compress) { $payloadName = 'install.esd'; $origin = 'ConfiguredESD' }
+    $payloadPath = Join-Path $tree ('sources\' + $payloadName)
+    if ($Compress) {
+        Write-MediaStage 'Export the configured WIM to recovery-compressed ESD'
+        & $dismExe /Export-Image ('/SourceImageFile:' + $wimPath) /SourceIndex:1 ('/DestinationImageFile:' + $payloadPath) /Compress:recovery /CheckIntegrity /English ('/LogPath:' + $dismLog) ('/ScratchDir:' + $scratch) | Out-Null
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $payloadPath -PathType Leaf)) { throw 'Recovery-compressed ESD export failed.' }
+        Write-MediaStage 'Verify the compressed image metadata'
+        $outputMetadata = Get-MediaImageInfo -ImagePath $payloadPath
+        if (($inputMetadata | ConvertTo-Json -Compress) -cne ($outputMetadata | ConvertTo-Json -Compress)) { throw 'Compressed image metadata differs from the verified WIM.' }
+    }
+    else {
+        Write-MediaStage 'Copy the verified configured WIM without recompression'
+        Copy-Item -LiteralPath $wimPath -Destination $payloadPath
+    }
+    $operation['payloadPath'] = 'sources/' + $payloadName
+    $operation['payloadCompression'] = 'Unchanged'
+    if ($Compress) { $operation.payloadCompression = 'Recovery' }
+    $operation['payloadSha256'] = (Get-FileHash -LiteralPath $payloadPath -Algorithm SHA256).Hash
+    if (-not $Compress -and $operation.payloadSha256 -cne $build.outputWimSha256) { throw 'Copied WIM differs from the verified build.' }
+    $operation['payloadSizeBytes'] = (Get-Item -LiteralPath $payloadPath).Length
+    $operation['payloadImage'] = $outputMetadata
+    $outputMetadata | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $output 'image.json') -Encoding UTF8
+    $manifest += [pscustomobject]@{ path = 'sources\' + $payloadName; sha256 = $operation.payloadSha256; origin = $origin }
+    $payloads = @(Get-ChildItem -LiteralPath (Join-Path $tree 'sources') -File | Where-Object { $_.Name -match '^install\.(wim|esd)$|^install.*\.swm$' })
+    if ($payloads.Count -ne 1 -or $payloads[0].Name -ine $payloadName -or (Test-Path -LiteralPath (Join-Path $tree 'autounattend.xml'))) { throw 'Media must contain only the configured installation image and no root answer file.' }
+    foreach ($required in @('boot\etfsboot.com', 'efi\microsoft\boot\efisys.bin', 'sources\boot.wim', 'setup.exe')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $tree $required) -PathType Leaf)) { throw ('Missing original Setup file: ' + $required) }
+    }
+    Write-MediaStage 'Create bootable installation ISO'
+    $bootOrder = @($manifest | Where-Object { $_.path -match '^(boot\\|efi\\|bootmgr(\.efi)?$)' } | ForEach-Object { $_.path } | Sort-Object)
+    $bootOrder += 'sources\boot.wim'
+    [IO.File]::WriteAllLines((Join-Path $output 'boot-order.txt'), $bootOrder, [Text.Encoding]::ASCII)
+    # Relative boot paths avoid spaces in Oscdimg's multi-boot option.
+    Push-Location -LiteralPath $tree
+    try {
+        & $oscdimg.path -m -o -h -u2 -udfver102 -lWIN11PRO '-yo..\boot-order.txt' '-bootdata:2#p0,e,bboot\etfsboot.com#pEF,e,befi\microsoft\boot\efisys.bin' $tree $iso | Out-Null
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $iso)) { throw 'Oscdimg failed to create installation media.' }
+    }
+    finally { Pop-Location }
+    Write-MediaStage 'Verify every file in the packaged ISO'
+    $targetDisk = Mount-DiskImage -ImagePath $iso -StorageType ISO -Access ReadOnly -PassThru
+    $targetAttached = $true
+    $targetRoot = Get-MediaVolumeRoot $targetDisk
+    foreach ($entry in $manifest) {
+        if ((Get-FileHash -LiteralPath (Join-Path $targetRoot $entry.path) -Algorithm SHA256).Hash -cne $entry.sha256) { throw ('Packaged file hash mismatch: ' + $entry.path) }
+    }
+    if (@(Get-ChildItem -LiteralPath $targetRoot -Recurse -File -Force).Count -ne $manifest.Count) { throw 'Packaged ISO contains an unexpected file count.' }
+    $operation.filesVerified = $manifest.Count
+    ConvertTo-Json -InputObject $manifest -Depth 5 | Set-Content -LiteralPath (Join-Path $output 'files.json') -Encoding UTF8
+    Dismount-DiskImage -ImagePath $iso | Out-Null
+    $targetAttached = $false
+    # This exact staging path was created under the checked output directory.
+    if ([IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($tree)) -ine $output) { throw 'Unsafe staging cleanup path.' }
+    Remove-Item -LiteralPath $tree -Recurse -Force
+    $operation.isoSha256 = (Get-FileHash -LiteralPath $iso -Algorithm SHA256).Hash
+    $operation.isoSizeBytes = (Get-Item -LiteralPath $iso).Length
+    $operation.stage = 'Complete'
+    $operation.status = 'Succeeded'
+}
+catch { $operation.status = 'Failed'; $operation.error = $_.Exception.Message; if ($prepared) { Save-MediaOperation } }
+finally {
+    if ($targetAttached) {
+        try { Dismount-DiskImage -ImagePath $iso | Out-Null } catch { $operation.cleanupErrors += $_.Exception.Message }
+    }
+    if ($sourceAttached) {
+        try { Dismount-DiskImage -ImagePath $sourceIso | Out-Null } catch { $operation.cleanupErrors += $_.Exception.Message }
+    }
+    if ($operation.cleanupErrors.Count -gt 0) { $operation.status = 'Failed' }
+    $operation['completedAtUtc'] = [DateTime]::UtcNow.ToString('o')
+    try { if ($prepared) { Save-MediaOperation } }
+    finally {
+        if ($null -ne $buildLock) { $buildLock.Dispose() }
+        if ($null -ne $lock) { $lock.Dispose() }
+    }
+}
+if ($operation.status -cne 'Succeeded') { throw ((@($operation.error) + @($operation.cleanupErrors)) -join [Environment]::NewLine) }
+Write-Output ('Verified installation media: ' + $iso + '; image index 1; no embedded answer file.')

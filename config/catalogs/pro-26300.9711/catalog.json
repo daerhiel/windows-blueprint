@@ -1,0 +1,2601 @@
+﻿{
+    "schemaVersion": 1,
+    "sourceIsoSha256": "AFC1E62C432B335E23D9D88E5C7971AE3B5D7DD651F306A2D5B485F60D43C2BF",
+    "sourceImage": {
+        "path": "sources/install.esd",
+        "index": 6,
+        "name": "Windows 11 Pro",
+        "editionId": "Professional",
+        "architecture": "x64",
+        "version": "10.0.26300.9711",
+        "languages": [
+            "en-US"
+        ],
+        "defaultLanguage": "en-US",
+        "inspectedAtUtc": "2026-11-07T13:41:20.1027502Z"
+    },
+    "adkVersion": "10.1.26100.9457",
+    "optionalFeatures": [
+        {
+            "name": "AppServerClient",
+            "state": "Disabled"
+        },
+        {
+            "name": "Client-DeviceLockdown",
+            "state": "Disabled"
+        },
+        {
+            "name": "Client-EmbeddedBootExp",
+            "state": "Disabled"
+        },
+        {
+            "name": "Client-EmbeddedLogon",
+            "state": "Disabled"
+        },
+        {
+            "name": "Client-EmbeddedShellLauncher",
+            "state": "Disabled"
+        },
+        {
+            "name": "ClientForNFS-Infrastructure",
+            "state": "Disabled"
+        },
+        {
+            "name": "Client-KeyboardFilter",
+            "state": "Disabled"
+        },
+        {
+            "name": "Client-ProjFS",
+            "state": "Disabled"
+        },
+        {
+            "name": "Client-UnifiedWriteFilter",
+            "state": "Disabled"
+        },
+        {
+            "name": "Containers",
+            "state": "Disabled"
+        },
+        {
+            "name": "Containers-DisposableClientVM",
+            "state": "Disabled"
+        },
+        {
+            "name": "Containers-HNS",
+            "state": "Disabled"
+        },
+        {
+            "name": "Containers-SDN",
+            "state": "Disabled"
+        },
+        {
+            "name": "Containers-Server-For-Application-Guard",
+            "state": "Disabled"
+        },
+        {
+            "name": "DataCenterBridging",
+            "state": "Disabled"
+        },
+        {
+            "name": "DirectoryServices-ADAM-Client",
+            "state": "Disabled"
+        },
+        {
+            "name": "DirectPlay",
+            "state": "Disabled"
+        },
+        {
+            "name": "HostGuardian",
+            "state": "Disabled"
+        },
+        {
+            "name": "HyperV-Guest-KernelInt",
+            "state": "Disabled"
+        },
+        {
+            "name": "HypervisorPlatform",
+            "state": "Disabled"
+        },
+        {
+            "name": "HyperV-KernelInt-VirtualDevice",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-ApplicationDevelopment",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-ApplicationInit",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-ASP",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-ASPNET",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-ASPNET45",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-BasicAuthentication",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-CertProvider",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-CGI",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-ClientCertificateMappingAuthentication",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-CommonHttpFeatures",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-CustomLogging",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-DefaultDocument",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-DigestAuthentication",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-DirectoryBrowsing",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-FTPExtensibility",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-FTPServer",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-FTPSvc",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-HealthAndDiagnostics",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-HostableWebCore",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-HttpCompressionDynamic",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-HttpCompressionStatic",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-HttpErrors",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-HttpLogging",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-HttpRedirect",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-HttpTracing",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-IIS6ManagementCompatibility",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-IISCertificateMappingAuthentication",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-IPSecurity",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-ISAPIExtensions",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-ISAPIFilter",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-LegacyScripts",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-LoggingLibraries",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-ManagementConsole",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-ManagementScriptingTools",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-ManagementService",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-Metabase",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-NetFxExtensibility",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-NetFxExtensibility45",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-ODBCLogging",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-Performance",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-RequestFiltering",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-RequestMonitor",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-Security",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-ServerSideIncludes",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-StaticContent",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-URLAuthorization",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-WebDAV",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-WebServer",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-WebServerManagementTools",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-WebServerRole",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-WebSockets",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-WindowsAuthentication",
+            "state": "Disabled"
+        },
+        {
+            "name": "IIS-WMICompatibility",
+            "state": "Disabled"
+        },
+        {
+            "name": "LegacyComponents",
+            "state": "Disabled"
+        },
+        {
+            "name": "MediaPlayback",
+            "state": "Enabled"
+        },
+        {
+            "name": "Microsoft-Hyper-V",
+            "state": "Disabled"
+        },
+        {
+            "name": "Microsoft-Hyper-V-All",
+            "state": "Disabled"
+        },
+        {
+            "name": "Microsoft-Hyper-V-Hypervisor",
+            "state": "Disabled"
+        },
+        {
+            "name": "Microsoft-Hyper-V-Management-Clients",
+            "state": "Disabled"
+        },
+        {
+            "name": "Microsoft-Hyper-V-Management-PowerShell",
+            "state": "Disabled"
+        },
+        {
+            "name": "Microsoft-Hyper-V-Services",
+            "state": "Disabled"
+        },
+        {
+            "name": "Microsoft-Hyper-V-Tools-All",
+            "state": "Disabled"
+        },
+        {
+            "name": "Microsoft-RemoteDesktopConnection",
+            "state": "Enabled"
+        },
+        {
+            "name": "Microsoft-Windows-Camera-CCX-Deployment",
+            "state": "Enabled"
+        },
+        {
+            "name": "Microsoft-Windows-Subsystem-Linux",
+            "state": "Disabled"
+        },
+        {
+            "name": "MSMQ-ADIntegration",
+            "state": "Disabled"
+        },
+        {
+            "name": "MSMQ-Container",
+            "state": "Disabled"
+        },
+        {
+            "name": "MSMQ-DCOMProxy",
+            "state": "Disabled"
+        },
+        {
+            "name": "MSMQ-HTTP",
+            "state": "Disabled"
+        },
+        {
+            "name": "MSMQ-Multicast",
+            "state": "Disabled"
+        },
+        {
+            "name": "MSMQ-Server",
+            "state": "Disabled"
+        },
+        {
+            "name": "MSMQ-Triggers",
+            "state": "Disabled"
+        },
+        {
+            "name": "MSRDC-Infrastructure",
+            "state": "Enabled"
+        },
+        {
+            "name": "MultiPoint-Connector",
+            "state": "Disabled"
+        },
+        {
+            "name": "MultiPoint-Connector-Services",
+            "state": "Disabled"
+        },
+        {
+            "name": "MultiPoint-Tools",
+            "state": "Disabled"
+        },
+        {
+            "name": "NetFx3",
+            "state": "DisabledWithPayloadRemoved"
+        },
+        {
+            "name": "NetFx4-AdvSrvs",
+            "state": "Enabled"
+        },
+        {
+            "name": "NetFx4Extended-ASPNET45",
+            "state": "Disabled"
+        },
+        {
+            "name": "NFS-Administration",
+            "state": "Disabled"
+        },
+        {
+            "name": "Printing-Foundation-Features",
+            "state": "Enabled"
+        },
+        {
+            "name": "Printing-Foundation-InternetPrinting-Client",
+            "state": "Enabled"
+        },
+        {
+            "name": "Printing-Foundation-LPDPrintService",
+            "state": "Disabled"
+        },
+        {
+            "name": "Printing-Foundation-LPRPortMonitor",
+            "state": "Disabled"
+        },
+        {
+            "name": "Printing-PrintToPDFServices-Features",
+            "state": "Enabled"
+        },
+        {
+            "name": "Printing-XPSServices-Features",
+            "state": "Disabled"
+        },
+        {
+            "name": "Recall",
+            "state": "Disabled"
+        },
+        {
+            "name": "SearchEngine-Client-Package",
+            "state": "Enabled"
+        },
+        {
+            "name": "ServicesForNFS-ClientOnly",
+            "state": "Disabled"
+        },
+        {
+            "name": "SimpleTCP",
+            "state": "Disabled"
+        },
+        {
+            "name": "SMB1Protocol",
+            "state": "Disabled"
+        },
+        {
+            "name": "SMB1Protocol-Client",
+            "state": "Disabled"
+        },
+        {
+            "name": "SMB1Protocol-Deprecation",
+            "state": "Disabled"
+        },
+        {
+            "name": "SMB1Protocol-Server",
+            "state": "Disabled"
+        },
+        {
+            "name": "SmbDirect",
+            "state": "Enabled"
+        },
+        {
+            "name": "Sysmon",
+            "state": "Disabled"
+        },
+        {
+            "name": "Sysmon-Service",
+            "state": "Disabled"
+        },
+        {
+            "name": "TelnetClient",
+            "state": "Disabled"
+        },
+        {
+            "name": "TFTP",
+            "state": "Disabled"
+        },
+        {
+            "name": "TIFFIFilter",
+            "state": "Disabled"
+        },
+        {
+            "name": "VirtualMachinePlatform",
+            "state": "Disabled"
+        },
+        {
+            "name": "WAS-ConfigurationAPI",
+            "state": "Disabled"
+        },
+        {
+            "name": "WAS-NetFxEnvironment",
+            "state": "Disabled"
+        },
+        {
+            "name": "WAS-ProcessModel",
+            "state": "Disabled"
+        },
+        {
+            "name": "WAS-WindowsActivationService",
+            "state": "Disabled"
+        },
+        {
+            "name": "WCF-HTTP-Activation",
+            "state": "Disabled"
+        },
+        {
+            "name": "WCF-HTTP-Activation45",
+            "state": "Disabled"
+        },
+        {
+            "name": "WCF-MSMQ-Activation45",
+            "state": "Disabled"
+        },
+        {
+            "name": "WCF-NonHTTP-Activation",
+            "state": "Disabled"
+        },
+        {
+            "name": "WCF-Pipe-Activation45",
+            "state": "Disabled"
+        },
+        {
+            "name": "WCF-Services45",
+            "state": "Enabled"
+        },
+        {
+            "name": "WCF-TCP-Activation45",
+            "state": "Disabled"
+        },
+        {
+            "name": "WCF-TCP-PortSharing45",
+            "state": "Enabled"
+        },
+        {
+            "name": "Windows-Defender-Default-Definitions",
+            "state": "Enabled"
+        },
+        {
+            "name": "Windows-Identity-Foundation",
+            "state": "Disabled"
+        },
+        {
+            "name": "WindowsMediaPlayer",
+            "state": "Enabled"
+        },
+        {
+            "name": "WorkFolders-Client",
+            "state": "Enabled"
+        }
+    ],
+    "capabilities": [
+        {
+            "name": "Accessibility.Braille~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "App.StepsRecorder~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "App.WirelessDisplay.Connect~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "AzureArcSetup~~~~",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Browser.InternetExplorer~~~~0.0.11.0",
+            "state": "Installed"
+        },
+        {
+            "name": "DirectX.Configuration.Database~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Hello.Face.20134~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Language.Basic~~~af-ZA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~am-ET~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~ar-SA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~as-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~az-LATN-AZ~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~ba-RU~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~be-BY~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~bg-BG~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~bn-BD~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~bn-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~br-FR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~bs-LATN-BA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~ca-ES~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~cs-CZ~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~cy-GB~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~da-DK~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~de-CH~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~de-DE~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~el-GR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~en-AU~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~en-CA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~en-GB~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~en-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~en-US~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Language.Basic~~~es-ES~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~es-MX~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~es-US~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~et-EE~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~eu-ES~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~fa-IR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~fi-FI~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~fil-PH~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~fo-FO~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~fr-BE~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~fr-CA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~fr-CH~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~fr-FR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~ga-IE~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~gd-GB~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~gl-ES~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~gu-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~ha-LATN-NG~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~haw-US~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~he-IL~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~hi-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~hr-HR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~hu-HU~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~hy-AM~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~id-ID~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~ig-NG~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~is-IS~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~it-IT~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~ja-JP~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~ka-GE~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~kk-KZ~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~kl-GL~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~km-KH~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~kn-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~kok-DEVA-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~ko-KR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~ky-KG~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~lb-LU~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~lo-LA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~lt-LT~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~lv-LV~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~mi-NZ~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~mk-MK~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~ml-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~mn-MN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~mr-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~ms-BN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~ms-MY~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~mt-MT~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~my-MM~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~nb-NO~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~ne-NP~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~nl-NL~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~nn-NO~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~nso-ZA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~or-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~pa-ARAB-PK~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~pa-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~pl-PL~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~ps-AF~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~pt-BR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~pt-PT~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~quc-LATN-GT~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~quz-LATN-BO~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~rm-CH~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~ro-RO~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~ru-RU~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~rw-RW~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~sah-RU~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~sd-ARAB-PK~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~si-LK~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~sk-SK~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~sl-SI~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~so-SO~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~sq-AL~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~sr-CYRL-RS~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~sr-LATN-RS~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~sv-SE~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~sw-KE~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~ta-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~te-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~tg-CYRL-TJ~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~th-TH~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~tk-TM~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~tn-ZA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~tr-TR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~tt-RU~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~ug-CN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~uk-UA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~ur-PK~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~uz-LATN-UZ~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~vi-VN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~wo-SN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~xh-ZA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~yo-NG~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~zh-CN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~zh-HK~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~zh-TW~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Basic~~~zu-ZA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Arab~~~und-ARAB~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Beng~~~und-BENG~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Cans~~~und-CANS~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Cher~~~und-CHER~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Deva~~~und-DEVA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Ethi~~~und-ETHI~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Gujr~~~und-GUJR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Guru~~~und-GURU~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Hans~~~und-HANS~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Hant~~~und-HANT~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Hebr~~~und-HEBR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Jpan~~~und-JPAN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Khmr~~~und-KHMR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Knda~~~und-KNDA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Kore~~~und-KORE~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Laoo~~~und-LAOO~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Mlym~~~und-MLYM~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Orya~~~und-ORYA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.PanEuropeanSupplementalFonts~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Sinh~~~und-SINH~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Syrc~~~und-SYRC~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Taml~~~und-TAML~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Telu~~~und-TELU~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Fonts.Thai~~~und-THAI~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~af-ZA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~ar-EG~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~as-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~az-LATN-AZ~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~be-BY~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~bg-BG~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~bn-BD~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~bn-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~br-FR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~bs-LATN-BA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~ca-ES~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~co-FR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~cs-CZ~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~cy-GB~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~da-DK~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~de-DE~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~el-GR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~en-GB~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~en-US~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Language.Handwriting~~~es-ES~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~es-MX~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~et-EE~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~eu-ES~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~fi-FI~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~fil-PH~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~fj-FJ~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~fr-FR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~ga-IE~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~gd-GB~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~gl-ES~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~haw-US~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~he-IL~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~hi-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~hr-HR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~hu-HU~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~id-ID~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~is-IS~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~it-IT~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~ja-JP~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~jv-LATN-ID~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~ki-KE~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~kl-GL~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~kn-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~ko-KR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~lb-LU~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~lt-LT~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~lv-LV~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~mg-MG~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~mi-NZ~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~ms-BN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~ms-MY~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~nb-NO~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~nl-NL~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~nn-NO~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~nso-ZA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~oc-FR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~pl-PL~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~pt-BR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~pt-PT~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~quz-BO~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~rm-CH~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~ro-RO~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~ru-RU~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~rw-RW~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~sco-LATN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~sk-SK~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~sl-SI~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~sn-LATN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~so-SO~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~sq-AL~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~sr-CYRL-RS~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~sr-LATN-RS~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~sv-SE~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~sw-KE~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~ta-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~te-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~th-TH~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~tk-TM~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~tn-ZA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~tr-TR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~uk-UA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~uz-LATN-UZ~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~vi-VN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~wo-SN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~xh-ZA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~zh-CN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~zh-HK~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~zh-TW~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Handwriting~~~zu-ZA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~ar-SA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~bg-BG~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~bs-LATN-BA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~cs-CZ~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~da-DK~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~de-DE~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~el-GR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~en-GB~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~en-US~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Language.OCR~~~es-ES~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~es-MX~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~fi-FI~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~fr-CA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~fr-FR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~hr-HR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~hu-HU~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~it-IT~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~ja-JP~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~ko-KR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~nb-NO~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~nl-NL~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~pl-PL~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~pt-BR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~pt-PT~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~ro-RO~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~ru-RU~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~sk-SK~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~sl-SI~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~sr-CYRL-RS~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~sr-LATN-RS~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~sv-SE~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~tr-TR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~zh-CN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~zh-HK~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.OCR~~~zh-TW~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Speech~~~da-DK~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Speech~~~de-DE~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Speech~~~en-AU~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Speech~~~en-CA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Speech~~~en-GB~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Speech~~~en-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Speech~~~en-US~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Language.Speech~~~es-ES~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Speech~~~es-MX~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Speech~~~fr-CA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Speech~~~fr-FR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Speech~~~it-IT~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Speech~~~ja-JP~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Speech~~~pt-BR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Speech~~~zh-CN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Speech~~~zh-HK~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.Speech~~~zh-TW~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~ar-EG~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~ar-SA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~bg-BG~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~ca-ES~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~cs-CZ~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~da-DK~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~de-AT~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~de-CH~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~de-DE~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~el-GR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~en-AU~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~en-CA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~en-GB~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~en-IE~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~en-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~en-US~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Language.TextToSpeech~~~es-ES~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~es-MX~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~fi-FI~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~fr-CA~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~fr-CH~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~fr-FR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~he-IL~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~hi-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~hr-HR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~hu-HU~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~id-ID~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~it-IT~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~ja-JP~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~ko-KR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~ms-MY~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~nb-NO~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~nl-BE~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~nl-NL~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~pl-PL~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~pt-BR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~pt-PT~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~ro-RO~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~ru-RU~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~sk-SK~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~sl-SI~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~sv-SE~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~ta-IN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~th-TH~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~tr-TR~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~vi-VN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~zh-CN~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~zh-HK~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Language.TextToSpeech~~~zh-TW~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "MathRecognizer~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Media.WindowsMediaPlayer~~~~0.0.12.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Onecore.StorageManagement~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Microsoft.Wallpapers.Extended~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.WebDriver~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Microsoft.Windows.Console.Legacy~~~~",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Microsoft.Windows.Ethernet.Client.Intel.E1i68x64~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Ethernet.Client.Intel.E2f68~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Ethernet.Client.Realtek.Rtcx21x64~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Ethernet.Client.Vmware.Vmxnet3~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Notepad.System~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.PowerShell.ISE~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Sense.Client~~~~",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.StorageManagement~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Broadcom.Bcmpciedhd63~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Broadcom.Bcmwl63a~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Broadcom.Bcmwl63al~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Intel.Netwbw02~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Intel.Netwew00~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Intel.Netwew01~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Intel.Netwlv64~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Intel.Netwns64~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Intel.Netwsw00~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Intel.Netwtw02~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Intel.Netwtw04~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Intel.Netwtw06~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Intel.Netwtw08~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Intel.Netwtw10~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Marvel.Mrvlpcie8897~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Qualcomm.Athw8x~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Qualcomm.Athwnx~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Qualcomm.Qcamain10x64~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Ralink.Netr28x~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Realtek.Rtl8187se~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Realtek.Rtl8192se~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Realtek.Rtl819xp~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Realtek.Rtl85n64~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Realtek.Rtwlane~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Realtek.Rtwlane01~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Microsoft.Windows.Wifi.Client.Realtek.Rtwlane13~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "Msix.PackagingTool.Driver~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "NetFX3~~~~",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Network.Irda~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "OneCoreUAP.OneSync~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "OpenSSH.Client~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "OpenSSH.Server~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Print.Fax.Scan~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Print.Management.Console~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "RasCMAK.Client~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "RIP.Listener~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Rsat.AzureStack.HCI.Management.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Rsat.BitLocker.Recovery.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Rsat.CertificateServices.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Rsat.DHCP.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Rsat.Dns.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Rsat.FailoverCluster.Management.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Rsat.FileServices.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Rsat.GroupPolicy.Management.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Rsat.IPAM.Client.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Rsat.LLDP.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Rsat.NetworkController.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Rsat.NetworkLoadBalancing.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Rsat.RemoteAccess.Management.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Rsat.RemoteDesktop.Services.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Rsat.ServerManager.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Rsat.StorageMigrationService.Management.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Rsat.StorageReplica.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Rsat.SystemInsights.Management.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Rsat.VolumeActivation.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Rsat.WSUS.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "SNMP.Client~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Tools.DeveloperMode.Core~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Tools.Graphics.DirectX~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Tpm.TpmDiagnostics~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "VBSCRIPT~~~~",
+            "state": "Installed"
+        },
+        {
+            "name": "Windows.Desktop.EMS-SAC.Tools~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "Windows.Kernel.LA57~~~~0.0.1.0",
+            "state": "Installed"
+        },
+        {
+            "name": "WMI-SNMP-Provider.Client~~~~0.0.1.0",
+            "state": "NotPresent"
+        },
+        {
+            "name": "XPS.Viewer~~~~0.0.1.0",
+            "state": "NotPresent"
+        }
+    ],
+    "provisionedApps": [
+        {
+            "displayName": "Clipchamp.Clipchamp",
+            "packageName": "Clipchamp.Clipchamp_4.5.10920.0_neutral_~_yxz26nhyzhsrt",
+            "version": "4.5.10920.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.ApplicationCompatibilityEnhancements",
+            "packageName": "Microsoft.ApplicationCompatibilityEnhancements_1.2511.9.0_neutral_~_8wekyb3d8bbwe",
+            "version": "1.2511.9.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.AV1VideoExtension",
+            "packageName": "Microsoft.AV1VideoExtension_2.0.24.0_neutral_~_8wekyb3d8bbwe",
+            "version": "2.0.24.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.AVCEncoderVideoExtension",
+            "packageName": "Microsoft.AVCEncoderVideoExtension_1.1.23.0_neutral_~_8wekyb3d8bbwe",
+            "version": "1.1.23.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.BingNews",
+            "packageName": "Microsoft.BingNews_4.11.6001.0_neutral_~_8wekyb3d8bbwe",
+            "version": "4.11.6001.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.BingSearch",
+            "packageName": "Microsoft.BingSearch_2022.1.43.0_neutral_~_8wekyb3d8bbwe",
+            "version": "2022.1.43.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.BingWeather",
+            "packageName": "Microsoft.BingWeather_4.54.63038.0_neutral_~_8wekyb3d8bbwe",
+            "version": "4.54.63038.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.DesktopAppInstaller",
+            "packageName": "Microsoft.DesktopAppInstaller_2025.926.104.0_neutral_~_8wekyb3d8bbwe",
+            "version": "2025.926.104.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.GamingApp",
+            "packageName": "Microsoft.GamingApp_2026.514.51.0_neutral_~_8wekyb3d8bbwe",
+            "version": "2026.514.51.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.GetHelp",
+            "packageName": "Microsoft.GetHelp_10.2407.40222.0_neutral_~_8wekyb3d8bbwe",
+            "version": "10.2407.40222.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.HEIFImageExtension",
+            "packageName": "Microsoft.HEIFImageExtension_1.2.48.0_neutral_~_8wekyb3d8bbwe",
+            "version": "1.2.48.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.HEVCVideoExtension",
+            "packageName": "Microsoft.HEVCVideoExtension_2.4.45.0_neutral_~_8wekyb3d8bbwe",
+            "version": "2.4.45.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.MicrosoftOfficeHub",
+            "packageName": "Microsoft.MicrosoftOfficeHub_19.2506.56051.0_neutral_~_8wekyb3d8bbwe",
+            "version": "19.2506.56051.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.MicrosoftSolitaireCollection",
+            "packageName": "Microsoft.MicrosoftSolitaireCollection_4.25.4290.0_neutral_~_8wekyb3d8bbwe",
+            "version": "4.25.4290.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.MicrosoftStickyNotes",
+            "packageName": "Microsoft.MicrosoftStickyNotes_6.1.5.0_neutral_~_8wekyb3d8bbwe",
+            "version": "6.1.5.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.MPEG2VideoExtension",
+            "packageName": "Microsoft.MPEG2VideoExtension_1.2.13.0_neutral_~_8wekyb3d8bbwe",
+            "version": "1.2.13.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.OutlookForWindows",
+            "packageName": "Microsoft.OutlookForWindows_1.0.0.0_neutral__8wekyb3d8bbwe",
+            "version": "1.0.0.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.Paint",
+            "packageName": "Microsoft.Paint_11.2601.440.0_neutral_~_8wekyb3d8bbwe",
+            "version": "11.2601.440.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.PowerAutomateDesktop",
+            "packageName": "Microsoft.PowerAutomateDesktop_11.2511.178.0_neutral_~_8wekyb3d8bbwe",
+            "version": "11.2511.178.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.RawImageExtension",
+            "packageName": "Microsoft.RawImageExtension_2.5.24.0_neutral_~_8wekyb3d8bbwe",
+            "version": "2.5.24.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.ScreenSketch",
+            "packageName": "Microsoft.ScreenSketch_2022.2307.64.0_neutral_~_8wekyb3d8bbwe",
+            "version": "2022.2307.64.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.SecHealthUI",
+            "packageName": "Microsoft.SecHealthUI_1000.26100.9711.0_x64__8wekyb3d8bbwe",
+            "version": "1000.26100.9711.0",
+            "architecture": "9",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.StorePurchaseApp",
+            "packageName": "Microsoft.StorePurchaseApp_22509.1400.2.0_neutral_~_8wekyb3d8bbwe",
+            "version": "22509.1400.2.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.Todos",
+            "packageName": "Microsoft.Todos_2.176.7601.0_neutral_~_8wekyb3d8bbwe",
+            "version": "2.176.7601.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.VP9VideoExtensions",
+            "packageName": "Microsoft.VP9VideoExtensions_1.2.20.0_neutral_~_8wekyb3d8bbwe",
+            "version": "1.2.20.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.WebMediaExtensions",
+            "packageName": "Microsoft.WebMediaExtensions_2.1.38.0_neutral_~_8wekyb3d8bbwe",
+            "version": "2.1.38.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.WebpImageExtension",
+            "packageName": "Microsoft.WebpImageExtension_1.2.31.0_neutral_~_8wekyb3d8bbwe",
+            "version": "1.2.31.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.Windows.DevHome",
+            "packageName": "Microsoft.Windows.DevHome_0.100.128.0_neutral_~_8wekyb3d8bbwe",
+            "version": "0.100.128.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.Windows.Photos",
+            "packageName": "Microsoft.Windows.Photos_24.24070.23002.0_neutral_~_8wekyb3d8bbwe",
+            "version": "24.24070.23002.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.WindowsAlarms",
+            "packageName": "Microsoft.WindowsAlarms_2021.2512.0.0_neutral_~_8wekyb3d8bbwe",
+            "version": "2021.2512.0.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.WindowsCalculator",
+            "packageName": "Microsoft.WindowsCalculator_2021.2502.2.0_neutral_~_8wekyb3d8bbwe",
+            "version": "2021.2502.2.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.WindowsCamera",
+            "packageName": "Microsoft.WindowsCamera_2022.2510.2.0_neutral_~_8wekyb3d8bbwe",
+            "version": "2022.2510.2.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.WindowsFeedbackHub",
+            "packageName": "Microsoft.WindowsFeedbackHub_2.2607.201.0_neutral_~_8wekyb3d8bbwe",
+            "version": "2.2607.201.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.WindowsNotepad",
+            "packageName": "Microsoft.WindowsNotepad_11.2605.34.0_neutral_~_8wekyb3d8bbwe",
+            "version": "11.2605.34.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.WindowsSoundRecorder",
+            "packageName": "Microsoft.WindowsSoundRecorder_2021.2512.0.0_neutral_~_8wekyb3d8bbwe",
+            "version": "2021.2512.0.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.WindowsStore",
+            "packageName": "Microsoft.WindowsStore_22604.1400.0.0_neutral_~_8wekyb3d8bbwe",
+            "version": "22604.1400.0.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.WindowsTerminal",
+            "packageName": "Microsoft.WindowsTerminal_3001.24.11911.0_neutral_~_8wekyb3d8bbwe",
+            "version": "3001.24.11911.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.Xbox.TCUI",
+            "packageName": "Microsoft.Xbox.TCUI_1.23.28005.0_neutral_~_8wekyb3d8bbwe",
+            "version": "1.23.28005.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.XboxGamingOverlay",
+            "packageName": "Microsoft.XboxGamingOverlay_7.325.7221.0_neutral_~_8wekyb3d8bbwe",
+            "version": "7.325.7221.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.XboxIdentityProvider",
+            "packageName": "Microsoft.XboxIdentityProvider_12.130.2510.6003_neutral_~_8wekyb3d8bbwe",
+            "version": "12.130.2510.6003",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.XboxSpeechToTextOverlay",
+            "packageName": "Microsoft.XboxSpeechToTextOverlay_1.123.11001.0_neutral_~_8wekyb3d8bbwe",
+            "version": "1.123.11001.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.YourPhone",
+            "packageName": "Microsoft.YourPhone_1.26062.148.0_neutral_~_8wekyb3d8bbwe",
+            "version": "1.26062.148.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "Microsoft.ZuneMusic",
+            "packageName": "Microsoft.ZuneMusic_11.2512.10.0_neutral_~_8wekyb3d8bbwe",
+            "version": "11.2512.10.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "MicrosoftCorporationII.QuickAssist",
+            "packageName": "MicrosoftCorporationII.QuickAssist_2.0.56.0_neutral_~_8wekyb3d8bbwe",
+            "version": "2.0.56.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "MicrosoftWindows.Client.WebExperience",
+            "packageName": "MicrosoftWindows.Client.WebExperience_526.17301.80.9_neutral_~_cw5n1h2txyewy",
+            "version": "526.17301.80.9",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "MicrosoftWindows.CrossDevice",
+            "packageName": "MicrosoftWindows.CrossDevice_1.26062.105.0_neutral_~_cw5n1h2txyewy",
+            "version": "1.26062.105.0",
+            "architecture": "11",
+            "dependencyReview": "RequiredBeforeRemoval"
+        },
+        {
+            "displayName": "MSTeams",
+            "packageName": "MSTeams_1.0.0.1_x64__8wekyb3d8bbwe",
+            "version": "1.0.0.1",
+            "architecture": "9",
+            "dependencyReview": "RequiredBeforeRemoval"
+        }
+    ]
+}

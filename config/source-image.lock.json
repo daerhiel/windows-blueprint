@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "iso": {
+    "fileName": "windows.iso",
+    "sizeBytes": 7237533696,
+    "sha256": "AFC1E62C432B335E23D9D88E5C7971AE3B5D7DD651F306A2D5B485F60D43C2BF",
+    "recordedAtUtc": "2026-11-07T13:30:07.8672785Z",
+    "sourceUrl": null,
+    "publishedSha256": null,
+    "creationMethod": "MicrosoftMediaCreationTool",
+    "originEvidence": "UserReported",
+    "verificationStatus": "LocalFingerprintAndUserReportedOrigin"
+  },
+  "requiredImage": {
+    "editionId": "Professional",
+    "architecture": "x64",
+    "defaultLanguage": "en-US"
+  },
+  "observedMedia": {
+    "volumeLabel": "ESD-ISO",
+    "installationImagePath": "sources/install.esd",
+    "installationImageSizeBytes": 6334765466,
+    "buildArchitectureHint": "amd64",
+    "availableUiLanguages": [
+      "en-US"
+    ],
+    "metadataSource": "sources/idwbinfo.txt and sources/lang.ini"
+  },
+  "selectedImage": {
+    "path": "sources/install.esd",
+    "index": 6,
+    "name": "Windows 11 Pro",
+    "editionId": "Professional",
+    "architecture": "x64",
+    "version": "10.0.26300.9711",
+    "languages": [
+      "en-US"
+    ],
+    "defaultLanguage": "en-US",
+    "inspectedAtUtc": "2026-11-07T13:41:20.1027502Z"
+  }
+}

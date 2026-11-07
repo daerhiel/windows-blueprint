@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "adk": {
+    "version": "10.1.26100.9457",
+    "features": [
+      "OptionId.DeploymentTools"
+    ],
+    "documentationUrl": "https://learn.microsoft.com/en-us/windows-hardware/get-started/adk-install",
+    "servicingDocumentationUrl": "https://learn.microsoft.com/en-us/windows-hardware/get-started/adk-servicing",
+    "setupUrl": "https://go.microsoft.com/fwlink/?linkid=2289980",
+    "setupSha256": "AC6A930FDB5C2980BA5FEFE606D47EDAAFCF5F647B4337411500D158EA77300F",
+    "setupSignatureStatus": "Valid",
+    "dismDirectory": "C:\\Program Files (x86)\\Windows Kits\\10\\Assessment and Deployment Kit\\Deployment Tools\\amd64\\DISM",
+    "oscdimg": {
+      "path": "C:\\Program Files (x86)\\Windows Kits\\10\\Assessment and Deployment Kit\\Deployment Tools\\amd64\\Oscdimg\\oscdimg.exe",
+      "sha256": "D2709F8099DDD202BC41BCB399ECD5638503C6466F416D1A321769AF83A70C3A"
+    },
+    "wsim": {
+      "directory": "C:\\Program Files (x86)\\Windows Kits\\10\\Assessment and Deployment Kit\\Deployment Tools\\WSIM\\amd64",
+      "files": {
+        "microsoft.componentstudio.componentplatforminterface.dll": "0560763174C2CFD73B7F6B359425F6F749A9F258B95EF3716EB30DAAAF88C3E7",
+        "microsoft.componentstudio.ComponentPlatformImplementation.dll": "0681EEEAA58B753E20C1FA6B07B9ED00CAD4B0C0C8753F482F36ECD013C2AB11",
+        "microsoft.componentstudio.common.dll": "2F191788BFE18F4BBA42DA5F05A2F350A4DEA5D1C12272C4E5E814CF1773467C",
+        "microsoft.componentstudio.serializer.dll": "050F172DFA55FB27E1049B6880D19EFD519FBCB1895384E2E0E7EEB49E6180B3",
+        "ServicingCommon.dll": "0DBC0466EC8EFD5259A0D6410771B79CE68739D956AC99371057C1A0B200E65E"
+      }
+    },
+    "files": {
+      "dism.exe": "D1C3112796A419A9ABB4EA6163ECFD50204C4868628F2EFCB3BFF74EA7F2B8C4",
+      "dismapi.dll": "081192A3E4DF9BC6DDC9C12BDF061D8A0DF31C3515FC3E32B2E4DFB1D9CFF45C",
+      "Microsoft.Dism.Powershell.dll": "EAF738251D1A4AD3D4FBFF050EB6F1BEC7EBAEB60CF331CA0D69081816413181"
+    }
+  }
+}
