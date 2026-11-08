@@ -52,7 +52,7 @@ question or commented-out entry does not mean the capability should be disabled.
 
 ## Decisions required before VM installation
 
-The user-supplied ISO is currently located at `D:\temp\windows.iso`. Its computed size, SHA-256, selected image metadata, and user-reported origin through Media Creation Tool are recorded in [`config/source-image.lock.json`](../config/source-image.lock.json). No independent published ISO checksum has been recorded. See the [operations log](build-log.md) for the action sequence.
+The user-supplied ISO is currently located at `D:\temp\windows.iso`. Its computed size, SHA-256, selected image metadata, and user-reported origin through Media Creation Tool are recorded in [`config/source-image.lock.json`](../config/source-image.lock.json). No independent published ISO checksum has been recorded. See the [build plan](build-plan.md) for the action sequence.
 
 Elevated read-only inspection selected Windows 11 Pro (`Professional`) at index 6 in `sources/install.esd`: version `10.0.26300.9711`, x64, default language `en-US`. The helper rechecked the ISO fingerprint and detached the ISO after reading metadata.
 

@@ -60,6 +60,47 @@
         'Media.WindowsMediaPlayer~~~~0.0.12.0' = 'Absent'
     }
 
+    # Local GPO files are compiled into the WIM by build-image.ps1.
+    # Verification covers GPO delivery and registry state, not all advertising behavior.
+    Policies         = @{
+        # https://learn.microsoft.com/windows/client-management/mdm/policy-csp-privacy#disableadvertisingid
+        DisableAdvertisingId = @{
+            Path         = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo'
+            Name         = 'DisabledByGroupPolicy'
+            Kind         = 'DWord'
+            Value        = 1
+            Editions     = @('Professional', 'Enterprise')
+            Verification = 'LocalGpo'
+        }
+        # https://learn.microsoft.com/windows/client-management/mdm/policy-csp-experience#donotshowfeedbacknotifications
+        DisableFeedbackNotifications = @{
+            Path         = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection'
+            Name         = 'DoNotShowFeedbackNotifications'
+            Kind         = 'DWord'
+            Value        = 1
+            Editions     = @('Professional', 'Enterprise')
+            Verification = 'LocalGpo'
+        }
+        # https://learn.microsoft.com/windows/client-management/mdm/policy-csp-experience#allowtailoredexperienceswithdiagnosticdata
+        DisableTailoredExperiences = @{
+            Path         = 'HKCU:\SOFTWARE\Policies\Microsoft\Windows\CloudContent'
+            Name         = 'DisableTailoredExperiencesWithDiagnosticData'
+            Kind         = 'DWord'
+            Value        = 1
+            Editions     = @('Professional', 'Enterprise')
+            Verification = 'LocalGpo'
+        }
+        # https://learn.microsoft.com/windows/client-management/mdm/policy-csp-experience#allowthirdpartysuggestionsinwindowsspotlight
+        DisableThirdPartySuggestions = @{
+            Path         = 'HKCU:\SOFTWARE\Policies\Microsoft\Windows\CloudContent'
+            Name         = 'DisableThirdPartySuggestions'
+            Kind         = 'DWord'
+            Value        = 1
+            Editions     = @('Professional', 'Enterprise')
+            Verification = 'LocalGpo'
+        }
+    }
+
     # Desktop removal proposal; validate servicing and dependencies in the test VM.
     # Omitted apps keep their image defaults. Do not remove shared frameworks.
     InboxApps        = @{

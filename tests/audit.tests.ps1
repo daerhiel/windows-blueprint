@@ -57,7 +57,10 @@ function New-FixtureCollectors {
         })
     $areas.RegisteredApps = New-AuditArea -Data @() -Scope 'AllUsers'
     $areas.Services = New-AuditArea -Data @(@{ name = 'SyntheticService'; state = 'Stopped'; startMode = 'Manual'; delayedAutoStart = $false })
-    $areas.Policies = New-AuditArea -Status 'NotApplicable' -Scope 'ConfiguredRules'
+    $areas.Policies = New-AuditArea -Scope 'ConfiguredRegistryValues' -Data @(foreach ($id in $auditConfig.Policies.Keys) {
+            $rule = $auditConfig.Policies[$id]
+            @{ id = $id; applicable = $true; observation = @{ valuePresent = $true; kind = $rule.Kind; value = $rule.Value }; localGpo = @{ metadataValid = $true; valuePresent = $true; kind = $rule.Kind; value = $rule.Value }; effectiveState = 'NotVerified' }
+        })
     $areas.Servicing = New-AuditArea -Data @(@{ name = 'SyntheticUpdate'; state = 'Installed'; releaseType = 'SecurityUpdate' })
     $areas.Reboot = New-AuditArea -Data @{ indicatorPresent = $true; indicators = @{ cbsRebootPending = $true } }
     $collectors = @{}
@@ -142,7 +145,11 @@ $duplicateText = $text -replace '(?m)^([ \t]*InboxApps[ \t]*=[ \t]*@\{)', ('${1}
 Assert-AuditThrows { Read-AuditConfiguration $invalidPath } 'Conflicting rules for two versions of one app family must be rejected.'
 
 $policyPath = Join-Path $fixtureFiles 'policy.psd1'
-$policyText = (Get-Content -LiteralPath $configuration -Raw) -replace '(?s)\}\s*$', @'
+$policyText = @'
+@{
+    SchemaVersion = 1; Edition = 'Pro'; Architecture = 'x64'
+    Localization = @{ UiLanguage = 'en-US'; InputLocales = @('en-US') }
+    OptionalFeatures = @{}; Capabilities = @{}; InboxApps = @{}
     Policies = @{
         Synthetic = @{ Path = 'HKLM:\SOFTWARE\Policies\Synthetic'; Name = 'Setting'; Kind = 'DWord'; Value = 1; Editions = @('Professional') }
     }
@@ -156,6 +163,52 @@ Assert-AuditTest ($policy.exitCode -eq 2 -and $policy.summary.notVerified -eq 1)
 $collectors.Policies = { New-AuditArea -Data @(@{ id = 'Synthetic'; applicable = $false; observation = $null; effectiveState = 'NotVerified' }) }
 $notApplicable = Invoke-FixtureAudit -Label 'policy-not-applicable' -Collectors $collectors -ConfigurationFile $policyPath
 Assert-AuditTest ($notApplicable.exitCode -eq 0 -and $notApplicable.summary.notApplicable -eq 1) 'Known policy inapplicability must remain distinct from failed verification.'
+
+$collectors = New-FixtureCollectors
+$collectors.Policies = {
+    param($config)
+    New-AuditArea -Data @(foreach ($id in $config.Policies.Keys) {
+            $rule = $config.Policies[$id]
+            @{ id = $id; applicable = $true; observation = @{ valuePresent = $true; kind = $rule.Kind; value = $rule.Value }; localGpo = @{ metadataValid = $false; valuePresent = $true; kind = $rule.Kind; value = $rule.Value }; effectiveState = 'NotVerified' }
+        })
+}
+$managedPolicyPath = Join-Path $fixtureFiles 'managed-policy.psd1'
+[IO.File]::WriteAllText($managedPolicyPath, $policyText.Replace("Editions = @('Professional')", "Editions = @('Professional'); Verification = 'LocalGpo'"))
+$missingMetadata = Invoke-FixtureAudit -Label 'policy-metadata-missing' -Collectors $collectors -ConfigurationFile $managedPolicyPath
+Assert-AuditTest ($missingMetadata.summary.nonCompliant -eq 1 -and $missingMetadata.exitCode -eq 1) 'Matching registry values without valid local GPO processing metadata must fail delivery verification.'
+
+$polPath = Join-Path $fixtureFiles 'Registry.pol'
+$stream = [IO.File]::Create($polPath)
+$writer = [IO.BinaryWriter]::new($stream)
+try {
+    $writer.Write([uint32]0x67655250); $writer.Write([uint32]1); $writer.Write([uint16]91)
+    $writer.Write([Text.Encoding]::Unicode.GetBytes("SOFTWARE\Policies\Synthetic`0")); $writer.Write([uint16]59)
+    $writer.Write([Text.Encoding]::Unicode.GetBytes("Setting`0")); $writer.Write([uint16]59)
+    $writer.Write([uint32]4); $writer.Write([uint16]59); $writer.Write([uint32]4); $writer.Write([uint16]59)
+    $writer.Write([uint32]1); $writer.Write([uint16]93)
+}
+finally { $writer.Dispose(); $stream.Dispose() }
+$entries = @(Read-AuditRegistryPolicy -Path $polPath)
+Assert-AuditTest ($entries.Count -eq 1 -and $entries[0].kind -ceq 'DWord' -and $entries[0].value -eq 1 -and $entries[0].key -ceq 'SOFTWARE\Policies\Synthetic') 'Registry.pol must be decoded independently of the compiler.'
+$bytes = [IO.File]::ReadAllBytes($polPath)
+[IO.File]::WriteAllBytes($polPath, $bytes[0..($bytes.Length - 2)])
+Assert-AuditThrows { Read-AuditRegistryPolicy -Path $polPath } 'A truncated policy record must not prove configured state.'
+$bytes[0] = 0
+[IO.File]::WriteAllBytes($polPath, $bytes)
+Assert-AuditThrows { Read-AuditRegistryPolicy -Path $polPath } 'An invalid Registry.pol signature must fail collection.'
+$gpoPath = Join-Path $fixtureFiles 'GroupPolicy'
+[IO.Directory]::CreateDirectory((Join-Path $gpoPath 'Machine')) | Out-Null
+$bytes[0] = 0x50
+[IO.File]::WriteAllBytes((Join-Path $gpoPath 'Machine\Registry.pol'), $bytes)
+$ini = Join-Path $gpoPath 'gpt.ini'
+$registryExtension = '[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F72-3407-48AE-BA88-E8213C6761F1}]'
+$rule = @{Path = 'HKLM:\SOFTWARE\Policies\Synthetic'; Name = 'Setting' }
+[IO.File]::WriteAllText($ini, "[Other]`r`nVersion=1`r`ngPCMachineExtensionNames=$registryExtension`r`n")
+Assert-AuditTest (-not (Get-AuditGpoObservation -Store (Get-AuditLocalGpo $gpoPath) -Rule $rule).metadataValid) 'GPO metadata outside the General section must not prove delivery.'
+[IO.File]::WriteAllText($ini, "[General]`r`nVersion=1`r`ngPCMachineExtensionNames=[{D02B1F72-3407-48AE-BA88-E8213C6761F1}{35378EAC-683F-11D2-A89A-00C04FBBCFA2}]`r`n")
+Assert-AuditTest (-not (Get-AuditGpoObservation -Store (Get-AuditLocalGpo $gpoPath) -Rule $rule).metadataValid) 'The registry extension must be a client extension, not merely a tool GUID.'
+[IO.File]::WriteAllText($ini, "[General]`r`nVersion=1`r`ngPCMachineExtensionNames=$registryExtension`r`n")
+Assert-AuditTest ((Get-AuditGpoObservation -Store (Get-AuditLocalGpo $gpoPath) -Rule $rule).metadataValid) 'Valid General metadata and registry client-extension pairs must be recognized.'
 
 $before = (Get-FileHash -LiteralPath (Join-Path $goodPath 'audit.json') -Algorithm SHA256).Hash
 Assert-AuditThrows { Invoke-WindowsAudit -ConfigurationPath $configuration -OutputDirectory $goodPath -Collectors (New-FixtureCollectors) -Context $context } 'Existing reports must never be overwritten.'
@@ -179,6 +232,13 @@ if ($PSVersionTable.PSVersion.Major -ge 7) {
 }
 
 # Exercise the real collector projections with stubbed Windows APIs, not this host.
+$script:gpoReads = 0
+function Get-AuditLocalGpo {
+    param([string] $Path)
+    if (-not $Path) { throw 'Expected an explicit local GPO path.' }
+    $script:gpoReads++
+    @{ Machine = @(); User = @(); Metadata = @{} }
+}
 function Get-CimInstance {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidOverwritingBuiltInCmdlets', '', Justification = 'Test double prevents live CIM collection in this isolated test process.')]
     [CmdletBinding()]
@@ -276,5 +336,10 @@ foreach ($name in @('OptionalFeatures', 'Capabilities', 'ProvisionedApps', 'Serv
     $area = & $rawCollectors[$name] $auditConfig $context $goodPath
     Assert-AuditTest ($area.status -in @('Complete', 'NotApplicable')) ('Collector must project stub API evidence: ' + $name)
 }
+$editionOnly = Read-AuditConfiguration $configuration
+$editionOnly.Policies = @{ EnterpriseOnly = @{Path='HKLM:\SOFTWARE\Policies\Synthetic'; Name='Setting'; Kind='DWord'; Value=1; Editions=@('Enterprise'); Verification='LocalGpo'} }
+$readsBefore = $script:gpoReads
+$area = & $rawCollectors.Policies $editionOnly $context $goodPath
+Assert-AuditTest ($script:gpoReads -eq $readsBefore -and -not $area.data[0].applicable) 'Inapplicable policies must not require access to local GPO files.'
 
 Write-Output ("Passed $passed assertions using synthetic inventories only. Fixture reports: .local/audit/$prefix-*")

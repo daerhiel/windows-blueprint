@@ -1,5 +1,13 @@
 {
   "schemaVersion": 1,
+  "lgpo": {
+    "version": "3.0.2004.13001",
+    "documentationUrl": "https://www.microsoft.com/en-us/download/details.aspx?id=55319",
+    "archiveUrl": "https://download.microsoft.com/download/8/5/c/85c25433-a1b0-4ffa-9429-7e023e7da8d8/LGPO.zip",
+    "archiveSha256": "CB7159D134A0A1E7B1ED2ADA9A3CE8CE8F4DE391D14403D55438AF824247CC55",
+    "path": ".local/tools/lgpo/LGPO_30/LGPO.exe",
+    "sha256": "0C97F29543418B30340C4FF5D930D31E6196DD59C2CC74B6B890FA7B90C910C7"
+  },
   "adk": {
     "version": "10.1.26100.9457",
     "features": [

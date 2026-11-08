@@ -21,7 +21,9 @@ The initial deployment profile targets x64 machines and requires an x64 source i
 
 [Stage 1: requirements and initial inventory](docs/stage-01.md) is complete. Requirements and the desktop proposal are recorded, source inspection and catalog export have run successfully, and the installed-system audit has passed local fixture checks. Live collection and component verification are tracked in Stage 2.
 
-[Stage 2: clean VM and integration checks](docs/stage-02.md) is in progress. Clean baseline and limited-user checks passed. The configured recovery-compressed ISO was installed in the separate offline VM; two installed-system audits each passed all 67 checks and matched on stable inventory fields. The `configured-audited` checkpoint is saved. Update verification remains pending.
+[Stage 2: clean VM and integration checks](docs/stage-02.md) established the component-only image and installation/audit cycle. Clean baseline and limited-user checks passed; the component profile passed two matching 67-check audits in the configured VM, with `configured-audited` saved.
+
+[Stage 3: policies in the prepared image](docs/stage-03.md) integrates local GPO compilation into the existing WIM build and verification. The initial Pro rules address advertising and suggestions. A fresh installation passed repeated independent audits of component state, local GPO delivery, and registry values. Windows Update verification follows the complete configuration and deployment profile.
 
 [Requirements](docs/requirements.md) records accepted decisions and open questions.
 The [configuration guide](config/README.md) describes the initial profile and the captured component selection catalog.
@@ -32,7 +34,7 @@ The [Pro component selection template](config/catalogs/pro-26300.9711/selections
 
 [Installed-system audit](docs/audit.md) describes collection scope, configuration checks, JSON/Markdown reports, exit codes, and the Stage 2 VM verification sequence.
 
-[build operations log](docs/build-log.md) records preparation and build actions in execution order. The supplied ISO fingerprint and selected Pro image are pinned in [`config/source-image.lock.json`](config/source-image.lock.json); independent source verification is still pending.
+The [build plan](docs/build-plan.md) provides sequential preparation, build, and VM verification instructions. The supplied ISO fingerprint and selected Pro image are pinned in [`config/source-image.lock.json`](config/source-image.lock.json); independent source verification is still pending.
 
 After capturing the clean Pro baseline, [build a separate configured WIM](scripts/README.md#build-the-configured-image), perform a fresh VM installation, and verify it with the independent audit before and after updates. Deployment to a physical computer follows verification of this cycle.
 

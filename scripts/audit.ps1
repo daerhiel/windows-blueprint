@@ -48,6 +48,76 @@ function Read-AuditRegistryValue {
     finally { $key.Dispose() }
 }
 
+function Read-AuditRegistryPolicy {
+    param([string] $Path)
+    $stream = [IO.File]::OpenRead($Path)
+    $reader = [IO.BinaryReader]::new($stream, [Text.Encoding]::Unicode)
+    try {
+        if ($reader.ReadUInt32() -ne 0x67655250 -or $reader.ReadUInt32() -ne 1) { throw 'Invalid Registry.pol signature or version.' }
+        while ($stream.Position -lt $stream.Length) {
+            if ($reader.ReadUInt16() -ne 91) { throw 'Invalid Registry.pol record start.' }
+            $strings = @()
+            foreach ($field in @('key', 'name')) {
+                $characters = [Collections.Generic.List[char]]::new()
+                while (($character = $reader.ReadUInt16()) -ne 0) { $characters.Add([char]$character) }
+                $strings += (-join $characters)
+                if ($reader.ReadUInt16() -ne 59) { throw ('Invalid Registry.pol delimiter after ' + $field) }
+            }
+            $type = $reader.ReadUInt32()
+            if ($reader.ReadUInt16() -ne 59) { throw 'Invalid Registry.pol type delimiter.' }
+            $size = $reader.ReadUInt32()
+            if ($reader.ReadUInt16() -ne 59 -or $size -gt ($stream.Length - $stream.Position - 2)) { throw 'Invalid Registry.pol data length.' }
+            $bytes = $reader.ReadBytes([int]$size)
+            if ($reader.ReadUInt16() -ne 93) { throw 'Invalid Registry.pol record end.' }
+            $kind = [string]$type
+            $value = $bytes
+            if ($type -eq 4 -and $size -eq 4) { $kind = 'DWord'; $value = [BitConverter]::ToUInt32($bytes, 0) }
+            [pscustomobject]@{ key = $strings[0]; name = $strings[1]; kind = $kind; value = $value }
+        }
+    }
+    finally { $reader.Dispose(); $stream.Dispose() }
+}
+
+function Get-AuditLocalGpo {
+    param([string] $Path)
+    $store = @{ Machine = @(); User = @(); Metadata = @{} }
+    $ini = Join-Path $Path 'gpt.ini'
+    if (Test-Path -LiteralPath $ini) {
+        $general = $false
+        foreach ($line in @(Get-Content -LiteralPath $ini)) {
+            if ($line -match '^\s*\[([^\]]+)\]\s*$') { $general = $Matches[1] -ieq 'General'; continue }
+            if ($general -and $line -match '^\s*(Version|gPCMachineExtensionNames|gPCUserExtensionNames)\s*=(.*?)\s*$') {
+                if ($store.Metadata.ContainsKey($Matches[1])) { throw 'Duplicate local GPO metadata field.' }
+                $store.Metadata[$Matches[1]] = $Matches[2]
+            }
+        }
+    }
+    foreach ($scope in @('Machine', 'User')) {
+        $file = Join-Path $Path ($scope + '\Registry.pol')
+        if (Test-Path -LiteralPath $file) { $store[$scope] = @(Read-AuditRegistryPolicy -Path $file) }
+    }
+    $store
+}
+
+function Get-AuditGpoObservation {
+    param($Store, $Rule)
+    $scope = 'Machine'
+    if ($Rule.Path.StartsWith('HKCU:', [StringComparison]::OrdinalIgnoreCase)) { $scope = 'User' }
+    $entries = @($Store[$scope] | Where-Object { $_.key -ieq $Rule.Path.Substring(6) -and $_.name -ieq $Rule.Name })
+    if ($entries.Count -gt 1) { throw 'Ambiguous local GPO value.' }
+    $version = [uint32]0
+    $metadataValid = $Store.Metadata.ContainsKey('Version') -and [uint32]::TryParse($Store.Metadata.Version, [ref]$version)
+    if ($scope -eq 'Machine') { $metadataValid = $metadataValid -and ($version -band 65535) -gt 0 }
+    else { $metadataValid = $metadataValid -and ($version -shr 16) -gt 0 }
+    $extension = 'gPC' + $scope + 'ExtensionNames'
+    $guid = '\{[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}\}'
+    $extensionList = '^(?:\[' + $guid + '(?:' + $guid + ')+\])+$'
+    $metadataValid = $metadataValid -and $Store.Metadata.ContainsKey($extension) -and $Store.Metadata[$extension] -match $extensionList -and $Store.Metadata[$extension] -match '\[\{35378EAC-683F-11D2-A89A-00C04FBBCFA2\}'
+    $kind = $null; $value = $null
+    if ($entries.Count -eq 1) { $kind = $entries[0].kind; $value = $entries[0].value }
+    [ordered]@{ scope = $scope; metadataValid = [bool]$metadataValid; valuePresent = ($entries.Count -eq 1); kind = $kind; value = $value }
+}
+
 function Read-AuditConfiguration {
     param([string] $Path)
     $config = Import-PowerShellDataFile -LiteralPath $Path -ErrorAction Stop
@@ -79,6 +149,7 @@ function Read-AuditConfiguration {
         if ($rule -isnot [hashtable] -or $rule.Path -notmatch '^HK(LM|CU):\\SOFTWARE\\Policies\\.+' -or -not $rule.Name -or -not $rule.ContainsKey('Value') -or $rule.Kind -notin @('DWord', 'QWord', 'String', 'ExpandString', 'MultiString', 'Binary') -or @($rule.Editions).Count -eq 0) {
             throw "Invalid policy observation rule: $id"
         }
+        if ($rule.ContainsKey('Verification') -and $rule.Verification -cne 'LocalGpo') { throw ('Unsupported policy verification: ' + $id) }
     }
     $config
 }
@@ -213,12 +284,16 @@ function Get-AuditCollectors {
             param($config, $context, $directory)
             if ($config.Policies.Count -eq 0) { return (New-AuditArea -Status 'NotApplicable' -Scope 'ConfiguredRules') }
             $edition = (Get-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -ErrorAction Stop).EditionID
+            $store = $null
+            if (@($config.Policies.Values | Where-Object { $_.ContainsKey('Verification') -and $_.Verification -eq 'LocalGpo' -and $edition -in @($_.Editions) }).Count) { $store = Get-AuditLocalGpo -Path (Join-Path $env:WINDIR 'System32\GroupPolicy') }
             $items = @(foreach ($id in @($config.Policies.Keys | Sort-Object)) {
                     $rule = $config.Policies[$id]
                     $applicable = @($rule.Editions) -contains $edition
                     $observation = $null
                     if ($applicable) { $observation = Read-AuditRegistryValue $rule.Path $rule.Name }
-                    [ordered]@{ id = $id; path = $rule.Path; name = $rule.Name; applicable = $applicable; observation = $observation; effectiveState = 'NotVerified' }
+                    $item = [ordered]@{ id = $id; path = $rule.Path; name = $rule.Name; applicable = $applicable; observation = $observation; effectiveState = 'NotVerified' }
+                    if ($rule.ContainsKey('Verification') -and $rule.Verification -eq 'LocalGpo' -and $applicable) { $item['localGpo'] = Get-AuditGpoObservation -Store $store -Rule $rule }
+                    $item
                 })
             New-AuditArea -Data $items -Scope 'ConfiguredRegistryValues'
         }
@@ -336,6 +411,14 @@ function Compare-AuditConfiguration {
                 $rule = $Config.Policies[$id]
                 if (-not $actual.valuePresent -or $actual.kind -ne $rule.Kind -or (ConvertTo-Json -InputObject $actual.value -Compress) -cne (ConvertTo-Json -InputObject $rule.Value -Compress)) {
                     $status = 'NonCompliant'; $reason = 'The configured registry observation does not match; policy effectiveness is not verified.'
+                }
+                elseif ($rule.ContainsKey('Verification') -and $rule.Verification -eq 'LocalGpo') {
+                    $gpo = $found[0].localGpo
+                    $actual = [ordered]@{ registry = $actual; localGpo = $gpo }
+                    $status = 'NonCompliant'; $reason = 'The local GPO store or processing metadata differs from the configured policy.'
+                    if ($gpo.metadataValid -and $gpo.valuePresent -and $gpo.kind -eq $rule.Kind -and (ConvertTo-Json -InputObject $gpo.value -Compress) -ceq (ConvertTo-Json -InputObject $rule.Value -Compress)) {
+                        $status = 'Compliant'; $reason = 'Local GPO delivery and registry state match; advertising behavior is not assessed.'
+                    }
                 }
             }
         }

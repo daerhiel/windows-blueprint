@@ -1,6 +1,10 @@
 # Windows configuration
 
-`windows.psd1` records the initial desired configuration as a PowerShell data file. It is configuration only: no installer or apply script consumes it yet. Read it with `Import-PowerShellDataFile` rather than executing it as a script.
+`windows.psd1` records the desired component and policy configuration consumed by `build-image.ps1` and the independent installed-system audit. Read it with `Import-PowerShellDataFile` rather than executing it as a script.
+
+## Local policies
+
+The `Policies` map selects registry-backed local GPO settings. `Verification = 'LocalGpo'` requires the prepared Machine/User policy file and processing metadata, then matching installed registry state. The builder compiles the files directly into the WIM using the pinned LGPO tool; the installed system needs no project setup script or LGPO executable. Only reviewed DWORD rules are currently supported for offline compilation. Existing source policies are refused rather than overwritten. See [Stage 3](../docs/stage-03.md) for scope and verification limits.
 
 ## Architecture
 

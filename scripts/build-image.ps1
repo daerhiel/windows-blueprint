@@ -50,6 +50,46 @@ function Get-ImageBuildPlan {
     $steps
 }
 
+function Get-ImagePolicyText {
+    param([hashtable] $Rules, [ValidateSet('Machine', 'User')] [string] $Scope)
+    $blocks = foreach ($id in @($Rules.Keys | Sort-Object)) {
+        $rule = $Rules[$id]
+        if (-not $rule.ContainsKey('Verification') -or $rule.Verification -cne 'LocalGpo' -or $rule.Kind -cne 'DWord' -or $rule.Value -isnot [int] -or $rule.Value -lt 0 -or $rule.Path -match '[\r\n]' -or $rule.Name -notmatch '^[A-Za-z0-9_.-]+$') { throw ('Unsupported offline local GPO rule: ' + $id) }
+        $ruleScope = 'Machine'; $label = 'Computer'
+        if ($rule.Path.StartsWith('HKCU:', [StringComparison]::OrdinalIgnoreCase)) { $ruleScope = 'User'; $label = 'User' }
+        if ($ruleScope -eq $Scope) { @($label, $rule.Path.Substring(6), $rule.Name, ('DWORD:' + $rule.Value)) -join "`r`n" }
+    }
+    if (@($blocks).Count) { ($blocks -join "`r`n`r`n") + "`r`n" }
+}
+
+function Write-ImageLocalGpo {
+    param([hashtable] $Rules, [string] $ImagePath, [string] $SourceDirectory, [string] $LgpoPath)
+    $gpo = Join-Path $ImagePath 'Windows\System32\GroupPolicy'
+    $existing = Get-AuditLocalGpo -Path $gpo
+    if ($existing.Machine.Count -or $existing.User.Count) { throw 'The source already contains registry policies; refusing to replace unmanaged local GPOs.' }
+    if ((Test-Path -LiteralPath $gpo) -and @(Get-ChildItem -LiteralPath $gpo -File -Recurse -Force | Where-Object { $_.Name -notin @('gpt.ini', 'Registry.pol') }).Count) { throw 'The source contains other local GPO settings; refusing to replace their metadata.' }
+    [IO.Directory]::CreateDirectory($SourceDirectory) | Out-Null
+    $version = 0
+    $metadata = @('[General]')
+    foreach ($scope in @('Machine', 'User')) {
+        $text = Get-ImagePolicyText -Rules $Rules -Scope $scope
+        if (-not $text) { continue }
+        $directory = Join-Path $gpo $scope
+        [IO.Directory]::CreateDirectory($directory) | Out-Null
+        $inputFile = Join-Path $SourceDirectory ($scope + '.txt')
+        [IO.File]::WriteAllText($inputFile, $text, [Text.UnicodeEncoding]::new($false, $true))
+        # /r and /w only compile a file; no policy is imported into the build host.
+        & $LgpoPath /r $inputFile /w (Join-Path $directory 'Registry.pol') | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw ('LGPO compilation failed: ' + $scope) }
+        $toolGuid = 'D02B1F72-3407-48AE-BA88-E8213C6761F1'
+        if ($scope -eq 'Machine') { $version = $version -bor 1 }
+        else { $version = $version -bor 65536; $toolGuid = 'D02B1F73-3407-48AE-BA88-E8213C6761F1' }
+        $metadata += 'gPC' + $scope + 'ExtensionNames=[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{' + $toolGuid + '}]'
+    }
+    $metadata += 'Version=' + $version
+    [IO.File]::WriteAllText((Join-Path $gpo 'gpt.ini'), (($metadata -join "`r`n") + "`r`n"), [Text.UnicodeEncoding]::new($false, $true))
+}
+
 function Get-ImageBuildVerification {
     param([hashtable] $Config, $Before, $After)
     $checks = @()
@@ -73,6 +113,14 @@ function Get-ImageBuildVerification {
     }
     foreach ($app in @($Before.InboxApps | Where-Object { -not $Config.InboxApps.ContainsKey($_.name) })) {
         $checks += [pscustomobject]@{ section = 'RetainedInboxApps'; name = $app.name; desired = 'Present'; actual = $null; passed = ($app.name -in @($After.InboxApps | ForEach-Object { $_.name })); requiresFirstBoot = $false }
+    }
+    if ($Config.ContainsKey('Policies')) {
+        foreach ($id in @($Config.Policies.Keys | Sort-Object)) {
+            $rule = $Config.Policies[$id]
+            $actual = Get-AuditGpoObservation -Store $After.LocalGpo -Rule $rule
+            $pass = $actual.metadataValid -and $actual.valuePresent -and $actual.kind -eq $rule.Kind -and $actual.value -eq $rule.Value
+            $checks += [pscustomobject]@{ section = 'Policies'; name = $id; desired = $rule.Value; actual = $actual; passed = [bool]$pass; requiresFirstBoot = $true }
+        }
     }
     $checks
 }
@@ -134,12 +182,24 @@ function Get-BuildInventory {
         OptionalFeatures = @(Get-WindowsOptionalFeature @servicing | Sort-Object FeatureName | ForEach-Object { [pscustomobject]@{ name = $_.FeatureName; state = [string]$_.State } })
         Capabilities     = @(Get-WindowsCapability @servicing -LimitAccess | Sort-Object Name | ForEach-Object { [pscustomobject]@{ name = $_.Name; state = [string]$_.State } })
         InboxApps        = @(Get-AppxProvisionedPackage @servicing | Sort-Object PackageName | ForEach-Object { [pscustomobject]@{ name = $_.PackageName; state = 'Present' } })
+        LocalGpo         = Get-AuditLocalGpo -Path (Join-Path $mount 'Windows\System32\GroupPolicy')
     }
 }
 try {
     try { $lock = [IO.FileStream]::new(($output + '.lock'), [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None, 4096, [IO.FileOptions]::DeleteOnClose) }
     catch { throw 'Another build is using this output directory.' }
     if ((Get-FileHash -LiteralPath $iso -Algorithm SHA256).Hash -cne $source.iso.sha256) { throw 'ISO fingerprint differs from the source lock.' }
+    $lgpo = $null
+    if ($config.Policies.Count) {
+        foreach ($scope in @('Machine', 'User')) { Get-ImagePolicyText -Rules $config.Policies -Scope $scope | Out-Null }
+        $targets = @($config.Policies.Values | ForEach-Object { $_.Path + '\' + $_.Name } | Sort-Object -Unique)
+        if ($targets.Count -ne $config.Policies.Count -or @($config.Policies.Values | Where-Object { $source.selectedImage.editionId -cnotin @($_.Editions) }).Count) { throw 'Offline policies contain duplicate targets or unsupported edition rules.' }
+        $lgpo = Join-Path $root $tools.lgpo.path
+        if ((Get-FileHash -LiteralPath $lgpo -Algorithm SHA256).Hash -cne $tools.lgpo.sha256) { throw 'LGPO fingerprint differs from the toolchain lock.' }
+        $signature = Get-AuthenticodeSignature -LiteralPath $lgpo
+        if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') { throw 'LGPO must have a valid Microsoft signature.' }
+        $operation['lgpoSha256'] = $tools.lgpo.sha256
+    }
     foreach ($file in $tools.adk.files.PSObject.Properties) {
         if ((Get-FileHash -LiteralPath (Join-Path $tools.adk.dismDirectory $file.Name) -Algorithm SHA256).Hash -cne $file.Value) { throw ('ADK fingerprint mismatch: ' + $file.Name) }
     }
@@ -241,7 +301,11 @@ public static class BuildNativeLoader {
             Save-BuildOperation
         }
     }
-    Write-BuildStage 'Verify offline selections and retained apps'
+    if ($config.Policies.Count) {
+        Write-BuildStage 'Compile selected local GPOs into the offline image'
+        Write-ImageLocalGpo -Rules $config.Policies -ImagePath $mount -SourceDirectory (Join-Path $output 'policy-source') -LgpoPath $lgpo
+    }
+    Write-BuildStage 'Verify offline selections, retained apps, and local GPOs'
     $after = Get-BuildInventory
     $after | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $output 'after.json') -Encoding UTF8
     $checks = @(Get-ImageBuildVerification -Config $config -Before $before -After $after)

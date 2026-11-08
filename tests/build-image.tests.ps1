@@ -8,6 +8,7 @@ param()
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\scripts\build-image.ps1')
+. (Join-Path $PSScriptRoot '..\scripts\audit.ps1')
 $checks = 0
 function Assert-BuildTest {
     param([bool] $Condition, [string] $Message)
@@ -74,4 +75,27 @@ $after.InboxApps = @([pscustomobject]@{ name = $keep; state = 'Present' }, [pscu
 Assert-BuildTest (@(Get-ImageBuildVerification $config $before $after | Where-Object { -not $_.passed -and $_.name -eq $remove }).Count -eq 1) 'Remaining selected apps must fail verification.'
 $after.OptionalFeatures = @()
 Assert-BuildTest (@(Get-ImageBuildVerification $config $before $after | Where-Object { -not $_.passed -and $_.section -eq 'OptionalFeatures' }).Count -eq 2) 'Missing selected features must not be reported as disabled.'
+$config.Policies = @{
+    Synthetic = @{ Path='HKLM:\SOFTWARE\Policies\Synthetic'; Name='Setting'; Kind='DWord'; Value=1; Editions=@('Professional'); Verification='LocalGpo' }
+}
+$after.LocalGpo = @{ Machine = @([pscustomobject]@{key='SOFTWARE\Policies\Synthetic'; name='Setting'; kind='DWord'; value=1}); User=@(); Metadata=@{Version='1'; gPCMachineExtensionNames='[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F72-3407-48AE-BA88-E8213C6761F1}]'} }
+Assert-BuildTest (@(Get-ImageBuildVerification $config $before $after | Where-Object { $_.section -eq 'Policies' -and $_.passed }).Count -eq 1) 'Offline local GPO entries and processing metadata must be verified.'
+$after.LocalGpo.Metadata.Version = '0'
+Assert-BuildTest (@(Get-ImageBuildVerification $config $before $after | Where-Object { $_.section -eq 'Policies' -and -not $_.passed }).Count -eq 1) 'A policy file without a nonzero scope version must fail image verification.'
+Assert-BuildException { Get-ImagePolicyText -Rules @{Invalid=@{Path='HKCU:\SOFTWARE\Policies\Example';Name="Setting`nDELETE";Kind='DWord';Value=1;Verification='LocalGpo'}} -Scope User } 'Generated LGPO text must reject command injection through value names.'
+$repository = Split-Path $PSScriptRoot -Parent
+$tool = (Get-Content (Join-Path $repository 'config\toolchain.lock.json') -Raw | ConvertFrom-Json).lgpo
+$lgpo = Join-Path $repository $tool.path
+if ((Get-FileHash -LiteralPath $lgpo).Hash -cne $tool.sha256) { throw 'The pinned LGPO compiler is required for native file-format verification.' }
+$fixtureRoot = Join-Path $repository ('.local\build-test-data\' + [Guid]::NewGuid().ToString('N'))
+$image = Join-Path $fixtureRoot 'image'
+$rules = (Read-AuditConfiguration (Join-Path $repository 'config\windows.psd1')).Policies
+Write-ImageLocalGpo -Rules $rules -ImagePath $image -SourceDirectory (Join-Path $fixtureRoot 'source') -LgpoPath $lgpo
+$store = Get-AuditLocalGpo -Path (Join-Path $image 'Windows\System32\GroupPolicy')
+foreach ($rule in $rules.Values) {
+    $actual = Get-AuditGpoObservation -Store $store -Rule $rule
+    Assert-BuildTest ($actual.metadataValid -and $actual.valuePresent -and $actual.kind -ceq $rule.Kind -and $actual.value -eq $rule.Value) 'An independent reader must verify the native LGPO compiler output for both scopes.'
+}
+Assert-BuildTest (@(Get-ChildItem -LiteralPath $image -Recurse -File).Count -eq 3) 'Only Machine/User Registry.pol and gpt.ini belong in the image; no runtime tool or script is deployed.'
+Assert-BuildException { Write-ImageLocalGpo -Rules $rules -ImagePath $image -SourceDirectory (Join-Path $fixtureRoot 'source') -LgpoPath $lgpo } 'Unmanaged existing local policies must never be silently replaced.'
 Write-Output ("Passed $checks offline build checks.")

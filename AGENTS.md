@@ -18,7 +18,7 @@
 
 ## Project context
 
-- Maintain `docs/build-log.md` as a short numbered sequence of concrete build actions. Include the command actually run or a link to the executed script and its invocation; compact command blocks are allowed. Mark each action Done, Blocked, Next, or Pending. Make the current stopping point and immediate next action obvious. Omit conversation history, documentation edits, routine checks, environment diagnostics, and verbose explanations. Keep hashes and image metadata in the lock files. Never put secrets or full machine inventories in the log.
+- Maintain `docs/build-plan.md` as a short numbered sequence of reproducible build instructions. Describe each step by its goal and include the required commands or script invocations. Do not record execution status, statistics, run results, or development history. Keep selected values and input metadata in configuration and lock files, and execution results in generated reports. Never put secrets or full machine inventories in the plan.
 
 - Read `README.md` for the project purpose and principles.
 - Read `docs/requirements.md` for accepted decisions and unresolved requirements.
