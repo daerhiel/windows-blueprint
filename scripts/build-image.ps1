@@ -39,7 +39,7 @@ function Get-ImageBuildPlan {
         }
     }
     $removed = @($steps | Where-Object { $_.section -eq 'InboxApps' } | ForEach-Object { ($_.name -split '_')[0] })
-    $protected = @('Microsoft.WindowsStore', 'Microsoft.StorePurchaseApp', 'Microsoft.DesktopAppInstaller', 'Microsoft.SecHealthUI', 'Microsoft.Windows.SecHealthUI', 'MicrosoftWindows.Client.WebExperience')
+    $protected = @('Microsoft.WindowsStore', 'Microsoft.StorePurchaseApp', 'Microsoft.DesktopAppInstaller', 'Microsoft.SecHealthUI', 'Microsoft.Windows.SecHealthUI')
     foreach ($name in $removed) {
         if ($name -in $protected) { throw "Protected app: $name" }
         $ownManifests = @($Manifests | Where-Object { $_.name -eq $name })
@@ -54,10 +54,21 @@ function Get-ImagePolicyText {
     param([hashtable] $Rules, [ValidateSet('Machine', 'User')] [string] $Scope)
     $blocks = foreach ($id in @($Rules.Keys | Sort-Object)) {
         $rule = $Rules[$id]
-        if (-not $rule.ContainsKey('Verification') -or $rule.Verification -cne 'LocalGpo' -or $rule.Kind -cne 'DWord' -or $rule.Value -isnot [int] -or $rule.Value -lt 0 -or $rule.Path -match '[\r\n]' -or $rule.Name -notmatch '^[A-Za-z0-9_.-]+$') { throw ('Unsupported offline local GPO rule: ' + $id) }
+        if (-not $rule.ContainsKey('Verification') -or $rule.Verification -cne 'LocalGpo' -or $rule.Path -match '[\r\n]' -or $rule.Name -notmatch '^[A-Za-z0-9_.-]+$') { throw ('Unsupported offline local GPO rule: ' + $id) }
+        $data = switch -CaseSensitive ($rule.Kind) {
+            DWord {
+                if ($rule.Value -isnot [int] -or $rule.Value -lt 0) { throw ('Expected a nonnegative DWORD: ' + $id) }
+                'DWORD:' + $rule.Value
+            }
+            ExpandString {
+                if ($rule.Value -isnot [string] -or $rule.Value -match '[\r\n\x00]') { throw ('Expected a single-line expandable string: ' + $id) }
+                'EXSZ:' + $rule.Value
+            }
+            default { throw ('Unsupported offline local GPO value type: ' + $id) }
+        }
         $ruleScope = 'Machine'; $label = 'Computer'
         if ($rule.Path.StartsWith('HKCU:', [StringComparison]::OrdinalIgnoreCase)) { $ruleScope = 'User'; $label = 'User' }
-        if ($ruleScope -eq $Scope) { @($label, $rule.Path.Substring(6), $rule.Name, ('DWORD:' + $rule.Value)) -join "`r`n" }
+        if ($ruleScope -eq $Scope) { @($label, $rule.Path.Substring(6), $rule.Name, $data) -join "`r`n" }
     }
     if (@($blocks).Count) { ($blocks -join "`r`n`r`n") + "`r`n" }
 }
@@ -88,6 +99,12 @@ function Write-ImageLocalGpo {
     }
     $metadata += 'Version=' + $version
     [IO.File]::WriteAllText((Join-Path $gpo 'gpt.ini'), (($metadata -join "`r`n") + "`r`n"), [Text.UnicodeEncoding]::new($false, $true))
+    foreach ($rule in $Rules.Values) {
+        if ($rule.ContainsKey('FileContent')) {
+            $relative = $rule.Value.Substring('%SystemRoot%\System32\GroupPolicy\'.Length)
+            [IO.File]::WriteAllText((Join-Path $gpo $relative), $rule.FileContent, [Text.UTF8Encoding]::new($false))
+        }
+    }
 }
 
 function Get-ImageBuildVerification {
@@ -119,6 +136,7 @@ function Get-ImageBuildVerification {
             $rule = $Config.Policies[$id]
             $actual = Get-AuditGpoObservation -Store $After.LocalGpo -Rule $rule
             $pass = $actual.metadataValid -and $actual.valuePresent -and $actual.kind -eq $rule.Kind -and $actual.value -eq $rule.Value
+            if ($rule.ContainsKey('FileContent')) { $pass = $pass -and $actual.file.matches }
             $checks += [pscustomobject]@{ section = 'Policies'; name = $id; desired = $rule.Value; actual = $actual; passed = [bool]$pass; requiresFirstBoot = $true }
         }
     }

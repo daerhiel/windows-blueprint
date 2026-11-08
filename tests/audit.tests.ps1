@@ -59,7 +59,9 @@ function New-FixtureCollectors {
     $areas.Services = New-AuditArea -Data @(@{ name = 'SyntheticService'; state = 'Stopped'; startMode = 'Manual'; delayedAutoStart = $false })
     $areas.Policies = New-AuditArea -Scope 'ConfiguredRegistryValues' -Data @(foreach ($id in $auditConfig.Policies.Keys) {
             $rule = $auditConfig.Policies[$id]
-            @{ id = $id; applicable = $true; observation = @{ valuePresent = $true; kind = $rule.Kind; value = $rule.Value }; localGpo = @{ metadataValid = $true; valuePresent = $true; kind = $rule.Kind; value = $rule.Value }; effectiveState = 'NotVerified' }
+            $gpo = @{ metadataValid = $true; valuePresent = $true; kind = $rule.Kind; value = $rule.Value }
+            if ($rule.ContainsKey('FileContent')) { $gpo.file = @{ present = $true; matches = $true } }
+            @{ id = $id; applicable = $true; observation = @{ valuePresent = $true; kind = $rule.Kind; value = $rule.Value }; localGpo = $gpo; effectiveState = 'NotVerified' }
         })
     $areas.Servicing = New-AuditArea -Data @(@{ name = 'SyntheticUpdate'; state = 'Installed'; releaseType = 'SecurityUpdate' })
     $areas.Reboot = New-AuditArea -Data @{ indicatorPresent = $true; indicators = @{ cbsRebootPending = $true } }
@@ -94,9 +96,19 @@ Assert-AuditTest ($good.summary.nonCompliant -eq 0 -and $good.summary.notVerifie
 $goodPath = Join-Path $repository ('.local\audit\' + $prefix + '-compliant')
 $json = Get-Content -LiteralPath (Join-Path $goodPath 'audit.json') -Raw | ConvertFrom-Json
 Assert-AuditTest ($json.context.mode -eq 'Fixture' -and $json.schemaVersion -eq 1) 'Fixture evidence must be clearly labeled and JSON must round-trip.'
-Assert-AuditTest (@($json.areas.Capabilities.data).Count -eq 424 -and @($json.areas.ProvisionedApps.data).Count -eq 30) 'Inventory arrays must retain all fixture entries.'
+Assert-AuditTest (@($json.areas.Capabilities.data).Count -eq 424 -and @($json.areas.ProvisionedApps.data).Count -eq 26) 'Inventory arrays must retain all fixture entries.'
 $second = Invoke-FixtureAudit 'repeat' (New-FixtureCollectors)
 Assert-AuditTest ((ConvertTo-Json -InputObject $good.areas -Depth 20 -Compress) -ceq (ConvertTo-Json -InputObject $second.areas -Depth 20 -Compress)) 'Identical collections must be comparable independently of run timestamps.'
+
+$fileCollectors = New-FixtureCollectors
+$filePolicies = (& $fileCollectors.Policies).data
+foreach ($item in $filePolicies) {
+    if ($item.localGpo.ContainsKey('file')) { $item.localGpo.file.matches = $false; $item.localGpo.file.present = $false }
+}
+$fileArea = New-AuditArea -Data $filePolicies -Scope 'ConfiguredRegistryValues'
+$fileCollectors.Policies = { $fileArea }.GetNewClosure()
+$fileDrift = Invoke-FixtureAudit 'policy-file-missing' $fileCollectors
+Assert-AuditTest ($fileDrift.exitCode -eq 1 -and $fileDrift.summary.nonCompliant -eq 1) 'Matching policy values must not hide a missing referenced JSON file.'
 
 $deploymentCollectors = New-FixtureCollectors
 $deploymentData = (& $deploymentCollectors.Deployment).data
@@ -126,7 +138,7 @@ Assert-AuditTest ($driftJson.areas.RegisteredApps.data[0].dependencies[0] -eq 'S
 
 $collectors.RegisteredApps = { New-AuditArea -Status 'Partial' -Scope 'CurrentUser' -Data @() -Errors @('All-user access denied.') }
 $partial = Invoke-FixtureAudit 'partial' $collectors
-Assert-AuditTest ($partial.exitCode -eq 2 -and $partial.summary.notVerified -eq 17) 'Missing all-user visibility must not prove app absence.'
+Assert-AuditTest ($partial.exitCode -eq 2 -and $partial.summary.notVerified -eq 21) 'Missing all-user visibility must not prove app absence.'
 Assert-AuditTest (@($partial.checks | Where-Object { $_.area -eq 'RegisteredApps' -and $null -ne $_.actual }).Count -eq 0) 'Unknown absence must not be reported as observed absence.'
 
 $collectors = New-FixtureCollectors

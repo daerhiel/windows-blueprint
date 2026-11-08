@@ -11,7 +11,7 @@ Follow these instructions from the repository root. Use the configuration and lo
 4. Inspect the source image and verify its fingerprint using [inspect-source.ps1](../scripts/inspect-source.ps1):
 
    ```powershell
-   .\scripts\run-elevated.ps1 -ScriptPath scripts/inspect-source.ps1 -Parameters @{ IsoPath = 'D:\temp\windows.iso'; OutputDirectory = 'D:\Repository\Projects\windows\.local\source-inspection'; ExpectedSha256 = 'AFC1E62C432B335E23D9D88E5C7971AE3B5D7DD651F306A2D5B485F60D43C2BF' } -LogDirectory '.local/launches/inspection'
+   .\scripts\run-elevated.ps1 -ScriptPath scripts/inspect-source.ps1 -Parameters @{ IsoPath = 'D:\temp\windows.iso'; OutputDirectory = 'D:\Repository\Projects\windows\.local\source-inspection'; ExpectedSha256 = (Get-Content config/source-image.lock.json -Raw | ConvertFrom-Json).iso.sha256 } -LogDirectory '.local/launches/inspection'
    ```
 
 5. Select the image matching the configured edition, architecture, and language from the inspection output; record its index and metadata in the source lock.
@@ -22,7 +22,7 @@ Follow these instructions from the repository root. Use the configuration and lo
 
    ```powershell
    New-Item -ItemType Directory -Path .local/downloads/adk-26100 -Force | Out-Null
-   Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/?linkid=2289980' -OutFile '.local/downloads/adk-26100/adksetup.exe'
+   Invoke-WebRequest -Uri (Get-Content config/toolchain.lock.json -Raw | ConvertFrom-Json).adk.setupUrl -OutFile '.local/downloads/adk-26100/adksetup.exe'
    Get-AuthenticodeSignature -LiteralPath '.local/downloads/adk-26100/adksetup.exe'
    ```
 
@@ -111,10 +111,10 @@ Follow these instructions from the repository root. Use the configuration and lo
     .\scripts\run-elevated.ps1 -ScriptPath scripts/run-vm-baseline.ps1 -Parameters @{ Action = 'Start'; OpenConsole = $true } -LogDirectory '.local/launches/vm-start'
     ```
 
-19. Complete Setup/OOBE offline, sign in as `vmadmin`, and inspect the baseline installation:
+19. Complete Setup/OOBE offline, sign in using the baseline account from [test-vm.psd1](../config/test-vm.psd1), and inspect the baseline installation:
 
     ```powershell
-    .\scripts\run-elevated.ps1 -ScriptPath scripts/run-vm-baseline.ps1 -Parameters @{ Action = 'Inspect'; WaitForGuestSeconds = 900 } -LogDirectory '.local/launches/vm-inspection'
+    .\scripts\run-elevated.ps1 -ScriptPath scripts/run-vm-baseline.ps1 -Parameters @{ Action = 'Inspect' } -LogDirectory '.local/launches/vm-inspection'
     ```
 
 20. Capture and compare baseline audits, then save the baseline checkpoint using the [baseline helper](../scripts/run-vm-baseline.ps1). Review the reports according to the [audit guide](audit.md):

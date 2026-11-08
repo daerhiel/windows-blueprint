@@ -83,6 +83,7 @@ Assert-BuildTest (@(Get-ImageBuildVerification $config $before $after | Where-Ob
 $after.LocalGpo.Metadata.Version = '0'
 Assert-BuildTest (@(Get-ImageBuildVerification $config $before $after | Where-Object { $_.section -eq 'Policies' -and -not $_.passed }).Count -eq 1) 'A policy file without a nonzero scope version must fail image verification.'
 Assert-BuildException { Get-ImagePolicyText -Rules @{Invalid=@{Path='HKCU:\SOFTWARE\Policies\Example';Name="Setting`nDELETE";Kind='DWord';Value=1;Verification='LocalGpo'}} -Scope User } 'Generated LGPO text must reject command injection through value names.'
+Assert-BuildException { Get-ImagePolicyText -Rules @{Invalid=@{Path='HKLM:\SOFTWARE\Policies\Example';Name='Setting';Kind='ExpandString';Value="value`nDELETE";Verification='LocalGpo'}} -Scope Machine } 'Expandable strings must not inject LGPO text lines.'
 $repository = Split-Path $PSScriptRoot -Parent
 $tool = (Get-Content (Join-Path $repository 'config\toolchain.lock.json') -Raw | ConvertFrom-Json).lgpo
 $lgpo = Join-Path $repository $tool.path
@@ -90,12 +91,26 @@ if ((Get-FileHash -LiteralPath $lgpo).Hash -cne $tool.sha256) { throw 'The pinne
 $fixtureRoot = Join-Path $repository ('.local\build-test-data\' + [Guid]::NewGuid().ToString('N'))
 $image = Join-Path $fixtureRoot 'image'
 $rules = (Read-AuditConfiguration (Join-Path $repository 'config\windows.psd1')).Policies
+$invalidFileConfig = Join-Path $fixtureRoot 'invalid-file.psd1'
+[IO.Directory]::CreateDirectory($fixtureRoot) | Out-Null
+$configText = Get-Content -LiteralPath (Join-Path $repository 'config\windows.psd1') -Raw
+[IO.File]::WriteAllText($invalidFileConfig, $configText.Replace('Machine\StartPins.json', 'Machine\..\outside.json'))
+Assert-BuildException { Read-AuditConfiguration $invalidFileConfig } 'Policy file paths must not escape the Group Policy directory.'
 Write-ImageLocalGpo -Rules $rules -ImagePath $image -SourceDirectory (Join-Path $fixtureRoot 'source') -LgpoPath $lgpo
 $store = Get-AuditLocalGpo -Path (Join-Path $image 'Windows\System32\GroupPolicy')
 foreach ($rule in $rules.Values) {
     $actual = Get-AuditGpoObservation -Store $store -Rule $rule
     Assert-BuildTest ($actual.metadataValid -and $actual.valuePresent -and $actual.kind -ceq $rule.Kind -and $actual.value -eq $rule.Value) 'An independent reader must verify the native LGPO compiler output for both scopes.'
+    if ($rule.ContainsKey('FileContent')) {
+        Assert-BuildTest ($actual.file.present -and $actual.file.matches) 'A JSON-backed policy must deliver its configured file content.'
+    }
 }
-Assert-BuildTest (@(Get-ChildItem -LiteralPath $image -Recurse -File).Count -eq 3) 'Only Machine/User Registry.pol and gpt.ini belong in the image; no runtime tool or script is deployed.'
+Assert-BuildTest (@(Get-ChildItem -LiteralPath $image -Recurse -File | Where-Object { $_.Name -notin @('Registry.pol', 'gpt.ini') }).Count -eq @($rules.Values | Where-Object { $_.ContainsKey('FileContent') }).Count) 'Only selected policy files belong in the image; no runtime tool or script is deployed.'
+$fileRule = @($rules.Values | Where-Object { $_.ContainsKey('FileContent') })[0]
+$payloadPath = Join-Path (Join-Path $image 'Windows\System32\GroupPolicy') $fileRule.Value.Substring('%SystemRoot%\System32\GroupPolicy\'.Length)
+[IO.File]::WriteAllText($payloadPath, '{}', [Text.UTF8Encoding]::new($false))
+$changedStore = Get-AuditLocalGpo -Path (Join-Path $image 'Windows\System32\GroupPolicy')
+$fileConfig = @{OptionalFeatures=@{};Capabilities=@{};InboxApps=@{};Policies=@{File=$fileRule}}
+Assert-BuildTest (@(Get-ImageBuildVerification $fileConfig @{InboxApps=@()} @{LocalGpo=$changedStore} | Where-Object { -not $_.passed }).Count -eq 1) 'Saved-image verification must detect changes to the referenced policy JSON.'
 Assert-BuildException { Write-ImageLocalGpo -Rules $rules -ImagePath $image -SourceDirectory (Join-Path $fixtureRoot 'source') -LgpoPath $lgpo } 'Unmanaged existing local policies must never be silently replaced.'
 Write-Output ("Passed $checks offline build checks.")

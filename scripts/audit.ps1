@@ -72,6 +72,11 @@ function Read-AuditRegistryPolicy {
             $kind = [string]$type
             $value = $bytes
             if ($type -eq 4 -and $size -eq 4) { $kind = 'DWord'; $value = [BitConverter]::ToUInt32($bytes, 0) }
+            if ($type -eq 2) {
+                if ($size -lt 2 -or $size % 2 -ne 0 -or $bytes[$size - 1] -ne 0 -or $bytes[$size - 2] -ne 0) { throw 'Invalid Registry.pol expandable string.' }
+                $kind = 'ExpandString'
+                $value = [Text.UnicodeEncoding]::new($false, $false, $true).GetString($bytes, 0, $size - 2)
+            }
             [pscustomobject]@{ key = $strings[0]; name = $strings[1]; kind = $kind; value = $value }
         }
     }
@@ -80,7 +85,7 @@ function Read-AuditRegistryPolicy {
 
 function Get-AuditLocalGpo {
     param([string] $Path)
-    $store = @{ Machine = @(); User = @(); Metadata = @{} }
+    $store = @{ Machine = @(); User = @(); Metadata = @{}; Files = @{} }
     $ini = Join-Path $Path 'gpt.ini'
     if (Test-Path -LiteralPath $ini) {
         $general = $false
@@ -95,6 +100,13 @@ function Get-AuditLocalGpo {
     foreach ($scope in @('Machine', 'User')) {
         $file = Join-Path $Path ($scope + '\Registry.pol')
         if (Test-Path -LiteralPath $file) { $store[$scope] = @(Read-AuditRegistryPolicy -Path $file) }
+    }
+    foreach ($entry in @($store.Machine) + @($store.User)) {
+        if ($entry.kind -eq 'ExpandString' -and $entry.value -match '^%SystemRoot%\\System32\\GroupPolicy\\((?:Machine|User)\\[A-Za-z0-9_.-]+\.json)$') {
+            $relative = $Matches[1]
+            $file = Join-Path $Path $relative
+            if (Test-Path -LiteralPath $file -PathType Leaf) { $store.Files[$relative] = [IO.File]::ReadAllText($file, [Text.Encoding]::UTF8) }
+        }
     }
     $store
 }
@@ -115,7 +127,13 @@ function Get-AuditGpoObservation {
     $metadataValid = $metadataValid -and $Store.Metadata.ContainsKey($extension) -and $Store.Metadata[$extension] -match $extensionList -and $Store.Metadata[$extension] -match '\[\{35378EAC-683F-11D2-A89A-00C04FBBCFA2\}'
     $kind = $null; $value = $null
     if ($entries.Count -eq 1) { $kind = $entries[0].kind; $value = $entries[0].value }
-    [ordered]@{ scope = $scope; metadataValid = [bool]$metadataValid; valuePresent = ($entries.Count -eq 1); kind = $kind; value = $value }
+    $observation = [ordered]@{ scope = $scope; metadataValid = [bool]$metadataValid; valuePresent = ($entries.Count -eq 1); kind = $kind; value = $value }
+    if ($Rule.ContainsKey('FileContent')) {
+        $relative = $Rule.Value.Substring('%SystemRoot%\System32\GroupPolicy\'.Length)
+        $present = $Store.ContainsKey('Files') -and $Store.Files.ContainsKey($relative)
+        $observation['file'] = [ordered]@{ present = $present; matches = ($present -and $Store.Files[$relative] -ceq $Rule.FileContent) }
+    }
+    $observation
 }
 
 function Read-AuditConfiguration {
@@ -160,6 +178,11 @@ function Read-AuditConfiguration {
             throw "Invalid policy observation rule: $id"
         }
         if ($rule.ContainsKey('Verification') -and $rule.Verification -cne 'LocalGpo') { throw ('Unsupported policy verification: ' + $id) }
+        if ($rule.ContainsKey('FileContent')) {
+            if ($rule.Kind -cne 'ExpandString' -or $rule.Verification -cne 'LocalGpo' -or $rule.Value -cnotmatch '^%SystemRoot%\\System32\\GroupPolicy\\(?:Machine|User)\\[A-Za-z0-9_.-]+\.json$' -or $rule.FileContent -isnot [string]) { throw ('Expected a local GPO JSON file policy: ' + $id) }
+            $payload = $rule.FileContent | ConvertFrom-Json -ErrorAction Stop
+            if ($null -eq $payload) { throw ('Expected JSON file content: ' + $id) }
+        }
     }
     $config
 }
@@ -456,6 +479,7 @@ function Compare-AuditConfiguration {
                     $status = 'NonCompliant'; $reason = 'The local GPO store or processing metadata differs from the configured policy.'
                     if ($gpo.metadataValid -and $gpo.valuePresent -and $gpo.kind -eq $rule.Kind -and (ConvertTo-Json -InputObject $gpo.value -Compress) -ceq (ConvertTo-Json -InputObject $rule.Value -Compress)) {
                         $status = 'Compliant'; $reason = 'Local GPO delivery and registry state match; user-facing behavior is not assessed.'
+                        if ($rule.ContainsKey('FileContent') -and -not $gpo.file.matches) { $status = 'NonCompliant'; $reason = 'The JSON file referenced by the local GPO is missing or differs from configuration.' }
                     }
                 }
             }

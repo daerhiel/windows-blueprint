@@ -1,6 +1,8 @@
 # Stage 3. Policies in the prepared image
 
-Status: the initial Pro policy delivery is verified through the saved WIM, packaged ISO, and a fresh installation. Repeated independent audits matched the selected component configuration, local GPO definitions and processing metadata, and installed registry values. Stable inventories matched, and the configured VM checkpoint was saved.
+Status: the expanded Pro privacy profile and deployment flow are verified through a fresh installation from the Fast-WIM development ISO. Independent audits matched the selected components, local GPO definitions and processing metadata, installed registry values, and deployment requirements. Stable pre-update inventories matched, and `configured-audited` is preserved. Audits after Windows Update and a further restart passed the configured checks, with no remaining reboot indicators or policy drift. A paused deployment of a selected removed app remains visible in inventory and requires review; absence checks assess provisioning and installed registrations.
+
+Subsequent configuration changes require an image rebuild and a fresh installation before they are covered by this verification. Policy delivery, registry state, and selected app absence are part of the existing audit; changed OOBE behavior also requires fresh-installation verification. Generated reports record the exact configuration tested.
 
 ## Delivery
 
@@ -10,22 +12,9 @@ The installed system receives ordinary local GPO files as part of Windows. Windo
 
 LGPO is a build-host dependency only. Its download URL, archive/executable fingerprints, and version are pinned in [toolchain.lock.json](../config/toolchain.lock.json); the downloaded files remain under ignored `.local/tools`. Build commands are in [build-plan step 22](build-plan.md).
 
-## Initial Pro selections
+## Policy selection
 
-| Policy | Scope | Purpose |
-| --- | --- | --- |
-| `DisableAdvertisingId` | Machine | Prevent advertising-ID use by apps |
-| `DisableFeedbackNotifications` | Machine | Suppress Windows feedback questions |
-| `DisableTailoredExperiences` | User | Prevent diagnostic personalization of offers |
-| `DisableThirdPartySuggestions` | User | Suppress third-party Spotlight suggestions |
-| `RequiredDiagnosticDataOnly` | Machine | Retain required diagnostic data without optional collection |
-| `DisableLocation` | Machine | Disable location services |
-| `DisableFindMyDevice` | Machine | Disable Find my device |
-| `DisableOnlineSpeech` | Machine | Disable online speech recognition |
-
-Each rule records its registry mapping, desired DWORD, reviewed editions, and `Verification = 'LocalGpo'`. Microsoft documents support for Pro and Enterprise: [advertising ID](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-privacy#disableadvertisingid), [feedback](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-experience#donotshowfeedbacknotifications), [tailored experiences](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-experience#allowtailoredexperienceswithdiagnosticdata), and [third-party suggestions](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-experience#allowthirdpartysuggestionsinwindowsspotlight). Broader consumer-experience and Windows-tips policies are reserved for separately reviewed Enterprise selections. Interface preferences are deferred.
-
-This profile does not claim removal of every Windows offer. In particular, disabling third-party suggestions and diagnostic personalization can leave Microsoft offers visible.
+The active policy rules and their official applicability references live in [windows.psd1](../config/windows.psd1). Each rule records its registry mapping, desired value and type, reviewed editions, and verification method. Review edition support before selecting a policy; a valid registry value alone does not establish that Windows supports its behavior.
 
 ## Verification
 
@@ -33,11 +22,11 @@ The build verifies the compiled GPO entries and processing metadata before savin
 
 The existing [audit.ps1](../scripts/audit.ps1) reads the installed Machine/User local GPO stores and the actual selected registry values. `LocalGpo` compliance means both the GPO definition/processing metadata and the applicable registry state match. It does not mean that every advertising surface was tested; `effectiveState` remains `NotVerified` in the collected evidence. An ordinary registry observation without `Verification = 'LocalGpo'` retains its existing effectiveness limitation.
 
-The configured VM now installs directly from the deployment ISO, with automatic disk sizing and account creation through native OOBE. Host-side audit access uses the account created in OOBE. The host must not install or repair policies in the guest before auditing. Preserve the clean baseline; use a fresh configured installation to verify the expanded profile. Reports from the initial advertising profile do not establish delivery of the additional privacy settings or the new deployment flow.
+The configured VM installs directly from the deployment ISO, with automatic disk sizing and account creation through native OOBE. Host-side audit access uses the account created in OOBE. The host must not install or repair policies in the guest before auditing. The fresh-installation audits verified the expanded privacy profile, GPT partition sizes and alignment, NTFS defaults, computer-name format, local administrator profile, and enabled Windows RE. Reports, comparison results, and checkpoint metadata remain under ignored `.local/vm-configured`; the clean baseline is preserved.
 
 ## Remaining sequence
 
-1. Complete the remaining configuration and physical deployment profile.
-2. Run the final fresh-installation VM cycle, then repeat the independent audit after Windows Update and required restarts.
+1. Review the paused app-deployment evidence and the intended scope of app-absence checks before physical deployment.
+2. Rebuild and repeat fresh-installation and post-update verification if configuration or audit requirements change.
 
 Windows Update verification is separate from image building and follows the completed configuration and deployment profile.

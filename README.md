@@ -4,7 +4,7 @@ This project aims to provide a reproducible clean installation of Windows 11 fro
 
 Pro is the base edition. Enterprise is considered as a separate profile for specific capabilities unavailable in Pro.
 
-The initial deployment profile targets x64 machines and requires an x64 source image.
+The source image must match the deployment architecture selected in [windows.psd1](config/windows.psd1).
 
 ## Principles
 
@@ -21,16 +21,18 @@ The initial deployment profile targets x64 machines and requires an x64 source i
 
 [Stage 1: requirements and initial inventory](docs/stage-01.md) is complete. Requirements and the desktop proposal are recorded, source inspection and catalog export have run successfully, and the installed-system audit has passed local fixture checks. Live collection and component verification are tracked in Stage 2.
 
-[Stage 2: clean VM and integration checks](docs/stage-02.md) established the component-only image and installation/audit cycle. Clean baseline and limited-user checks passed; the component profile passed two matching 67-check audits in the configured VM, with `configured-audited` saved.
+[Stage 2: clean VM and integration checks](docs/stage-02.md) established the component-only image and installation/audit cycle. Clean baseline and limited-user checks passed; repeated configured audits matched, with `configured-audited` saved.
 
 [Stage 3: policies in the prepared image](docs/stage-03.md) integrates local GPO compilation into the existing WIM build and verification. The initial Pro rules address advertising and suggestions. A fresh installation passed repeated independent audits of component state, local GPO delivery, and registry values. Windows Update verification follows the complete configuration and deployment profile.
 
-The [deployment flow](docs/requirements.md#deployment-flow) adds automatic disk sizing through Windows Setup and local-user creation through native OOBE. Development media use the Fast-compressed WIM. Fresh-installation verification of this deployment flow remains required before the update cycle.
+The [deployment flow](docs/requirements.md#deployment-flow) adds automatic disk sizing through Windows Setup and local-user creation through native OOBE. Development media use the Fast-compressed WIM. A fresh installation passed matching independent audits of the selected components, expanded privacy policies, and deployment profile; the pre-update `configured-audited` checkpoint is preserved. Post-update audits passed the configured checks, including after a further restart, with no remaining reboot indicators.
+
+The current [windows.psd1](config/windows.psd1) passed fresh-installation and post-update audits, including verification of referenced policy files. Generated reports identify the exact configuration verified. A paused deployment of a selected removed app remains visible in the post-update inventory and requires review; the audit's absence checks assess provisioning and installed registrations.
 
 [Requirements](docs/requirements.md) records accepted decisions and open questions.
 The [configuration guide](config/README.md) describes the initial profile and the captured component selection catalog.
 
-The [Pro component selection template](config/catalogs/pro-26300.9711/selections.psd1) contains the full exported list for the selected image: 138 Optional Features, 424 Windows Capabilities, and 47 provisioned Appx.
+The [component selection template](config/catalogs/pro-26300.9711/selections.psd1) contains the full exported component list for the selected image.
 
 [Preparation scripts](scripts/README.md) describes source inspection and how to run the required elevated helper.
 

@@ -121,14 +121,14 @@ deployment.
 
 - [x] The portable target scenario, x64 architecture, language, and initial component selections are defined.
 - [x] A complete catalog and commented selection templates are generated from the identified source image.
-- [x] No existing applications are migrated; inbox app selections are documented.
+- [x] No existing applications are migrated; inbox app selections are stored in configuration.
 - [x] Open decisions are listed with the stage by which they must be resolved.
 - [x] The audit implements collectors for all listed areas without configuration changes.
 - [x] Configuration loading, JSON parsing, Markdown formatting, and error reporting are validated.
 - [x] VM integration instructions cover live collection, insufficient privileges, and repeated-run comparison.
 - [x] Local reports and secrets have been verified to stay out of Git.
 
-Validation: `tests/audit.tests.ps1` passed 53 assertions in Windows PowerShell 5.1 and 65 in PowerShell 7, including native SID-wrapper projection, missing-SID completeness handling, local GPO delivery checks, malformed Registry.pol handling, and report schema validation in PowerShell 7. All Windows API responses and inventories were synthetic. Startup failure without an output directory returned exit code 4 before collection. Fixture reports are Git-ignored; collectors do not query passwords, product keys, or recovery keys. See the [audit guide and VM verification sequence](audit.md), [report schema](audit-report.schema.json), and [desktop selections](../config/README.md#desktop-selections).
+Validation uses `tests/audit.tests.ps1` with synthetic Windows API responses and inventories. Fixture reports are Git-ignored; collectors do not query passwords, product keys, or recovery keys. See the [audit guide and VM verification sequence](audit.md), [report schema](audit-report.schema.json), and [configuration guide](../config/README.md).
 
 Once these criteria are met, proceed to the stage for installing clean Pro in a VM.
 Implementation checks do not count as evidence that live collection has passed;

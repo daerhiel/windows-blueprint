@@ -5,7 +5,7 @@
 
     Deployment       = @{
         ComputerNamePrefix = 'DT-'
-        Disk = @{
+        Disk               = @{
             WindowsFraction = 0.125
             WindowsSizesGiB = @(128, 256, 512, 1024)
             EfiMiB          = 512
@@ -75,8 +75,59 @@
     # Local GPO files are compiled into the WIM by build-image.ps1.
     # Verification covers GPO delivery and registry state, not all advertising behavior.
     Policies         = @{
+        # https://learn.microsoft.com/windows/configuration/start/layout
+        ConfigureStartPins                 = @{
+            Path         = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer'
+            Name         = 'ConfigureStartPins'
+            Kind         = 'DWord'
+            Value        = 1
+            Editions     = @('Professional', 'Enterprise')
+            Verification = 'LocalGpo'
+        }
+        ConfigureStartPinsLayout           = @{
+            Path         = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer'
+            Name         = 'ConfigureStartPinsJSON'
+            Kind         = 'ExpandString'
+            Value        = '%SystemRoot%\System32\GroupPolicy\Machine\StartPins.json'
+            Editions     = @('Professional', 'Enterprise')
+            Verification = 'LocalGpo'
+            # Order: settings, files and text, images and capture, utilities.
+            FileContent  = @'
+{
+  "applyOnce": true,
+  "pinnedList": [
+    { "packagedAppId": "windows.immersivecontrolpanel_cw5n1h2txyewy!microsoft.windows.immersivecontrolpanel" },
+    { "desktopAppId": "Microsoft.Windows.Explorer" },
+    { "packagedAppId": "Microsoft.WindowsNotepad_8wekyb3d8bbwe!App" },
+    { "packagedAppId": "Microsoft.Windows.Photos_8wekyb3d8bbwe!App" },
+    { "packagedAppId": "Microsoft.Paint_8wekyb3d8bbwe!App" },
+    { "packagedAppId": "Microsoft.ScreenSketch_8wekyb3d8bbwe!App" },
+    { "packagedAppId": "Microsoft.WindowsCalculator_8wekyb3d8bbwe!App" },
+    { "packagedAppId": "Microsoft.WindowsAlarms_8wekyb3d8bbwe!App" }
+  ]
+}
+'@
+        }
+        # https://learn.microsoft.com/windows/client-management/mdm/policy-csp-newsandinterests#allownewsandinterests
+        DisableWidgets                     = @{
+            Path         = 'HKLM:\SOFTWARE\Policies\Microsoft\Dsh'
+            Name         = 'AllowNewsAndInterests'
+            Kind         = 'DWord'
+            Value        = 0
+            Editions     = @('Professional', 'Enterprise')
+            Verification = 'LocalGpo'
+        }
+        # https://learn.microsoft.com/windows/client-management/mdm/policy-csp-admx-credui#nolocalpasswordresetquestions
+        DisableLocalPasswordResetQuestions = @{
+            Path         = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System'
+            Name         = 'NoLocalPasswordResetQuestions'
+            Kind         = 'DWord'
+            Value        = 1
+            Editions     = @('Professional', 'Enterprise')
+            Verification = 'LocalGpo'
+        }
         # https://learn.microsoft.com/windows/client-management/mdm/policy-csp-system#allowtelemetry
-        RequiredDiagnosticDataOnly = @{
+        RequiredDiagnosticDataOnly         = @{
             Path         = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection'
             Name         = 'AllowTelemetry'
             Kind         = 'DWord'
@@ -85,7 +136,7 @@
             Verification = 'LocalGpo'
         }
         # https://learn.microsoft.com/windows/client-management/mdm/policy-csp-system#allowlocation
-        DisableLocation = @{
+        DisableLocation                    = @{
             Path         = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors'
             Name         = 'DisableLocation'
             Kind         = 'DWord'
@@ -94,7 +145,7 @@
             Verification = 'LocalGpo'
         }
         # https://learn.microsoft.com/windows/client-management/mdm/policy-csp-experience#allowfindmydevice
-        DisableFindMyDevice = @{
+        DisableFindMyDevice                = @{
             Path         = 'HKLM:\SOFTWARE\Policies\Microsoft\FindMyDevice'
             Name         = 'AllowFindMyDevice'
             Kind         = 'DWord'
@@ -103,7 +154,7 @@
             Verification = 'LocalGpo'
         }
         # https://learn.microsoft.com/windows/client-management/mdm/policy-csp-privacy#allowinputpersonalization
-        DisableOnlineSpeech = @{
+        DisableOnlineSpeech                = @{
             Path         = 'HKLM:\SOFTWARE\Policies\Microsoft\InputPersonalization'
             Name         = 'AllowInputPersonalization'
             Kind         = 'DWord'
@@ -112,7 +163,7 @@
             Verification = 'LocalGpo'
         }
         # https://learn.microsoft.com/windows/client-management/mdm/policy-csp-privacy#disableadvertisingid
-        DisableAdvertisingId = @{
+        DisableAdvertisingId               = @{
             Path         = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo'
             Name         = 'DisabledByGroupPolicy'
             Kind         = 'DWord'
@@ -121,7 +172,7 @@
             Verification = 'LocalGpo'
         }
         # https://learn.microsoft.com/windows/client-management/mdm/policy-csp-experience#donotshowfeedbacknotifications
-        DisableFeedbackNotifications = @{
+        DisableFeedbackNotifications       = @{
             Path         = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection'
             Name         = 'DoNotShowFeedbackNotifications'
             Kind         = 'DWord'
@@ -130,7 +181,7 @@
             Verification = 'LocalGpo'
         }
         # https://learn.microsoft.com/windows/client-management/mdm/policy-csp-experience#allowtailoredexperienceswithdiagnosticdata
-        DisableTailoredExperiences = @{
+        DisableTailoredExperiences         = @{
             Path         = 'HKCU:\SOFTWARE\Policies\Microsoft\Windows\CloudContent'
             Name         = 'DisableTailoredExperiencesWithDiagnosticData'
             Kind         = 'DWord'
@@ -139,7 +190,7 @@
             Verification = 'LocalGpo'
         }
         # https://learn.microsoft.com/windows/client-management/mdm/policy-csp-experience#allowthirdpartysuggestionsinwindowsspotlight
-        DisableThirdPartySuggestions = @{
+        DisableThirdPartySuggestions       = @{
             Path         = 'HKCU:\SOFTWARE\Policies\Microsoft\Windows\CloudContent'
             Name         = 'DisableThirdPartySuggestions'
             Kind         = 'DWord'
@@ -153,24 +204,28 @@
     # Omitted apps keep their image defaults. Do not remove shared frameworks.
     InboxApps        = @{
         # Consumer content and additional productivity apps.
-        'Clipchamp.Clipchamp_4.5.10920.0_neutral_~_yxz26nhyzhsrt'                    = 'Absent' # Video editor.
-        'Microsoft.BingNews_4.11.6001.0_neutral_~_8wekyb3d8bbwe'                     = 'Absent'
-        'Microsoft.BingWeather_4.54.63038.0_neutral_~_8wekyb3d8bbwe'                 = 'Absent'
-        'Microsoft.MicrosoftOfficeHub_19.2506.56051.0_neutral_~_8wekyb3d8bbwe'       = 'Absent' # Office/Microsoft 365 hub.
-        'Microsoft.OutlookForWindows_1.0.0.0_neutral__8wekyb3d8bbwe'                 = 'Absent'
-        'Microsoft.PowerAutomateDesktop_11.2511.178.0_neutral_~_8wekyb3d8bbwe'       = 'Absent'
-        'Microsoft.Todos_2.176.7601.0_neutral_~_8wekyb3d8bbwe'                       = 'Absent'
-        'Microsoft.Windows.DevHome_0.100.128.0_neutral_~_8wekyb3d8bbwe'              = 'Absent'
-        'Microsoft.WindowsFeedbackHub_2.2607.201.0_neutral_~_8wekyb3d8bbwe'          = 'Absent'
-        'Microsoft.YourPhone_1.26062.148.0_neutral_~_8wekyb3d8bbwe'                  = 'Absent' # Phone Link.
-        'MSTeams_1.0.0.1_x64__8wekyb3d8bbwe'                                         = 'Absent'
+        'Clipchamp.Clipchamp_4.5.10920.0_neutral_~_yxz26nhyzhsrt'                      = 'Absent' # Video editor.
+        'Microsoft.BingNews_4.11.6001.0_neutral_~_8wekyb3d8bbwe'                       = 'Absent'
+        'Microsoft.BingSearch_2022.1.43.0_neutral_~_8wekyb3d8bbwe'                     = 'Absent'
+        'Microsoft.BingWeather_4.54.63038.0_neutral_~_8wekyb3d8bbwe'                   = 'Absent'
+        'Microsoft.MicrosoftOfficeHub_19.2506.56051.0_neutral_~_8wekyb3d8bbwe'         = 'Absent' # Office/Microsoft 365 hub.
+        'Microsoft.MicrosoftStickyNotes_6.1.5.0_neutral_~_8wekyb3d8bbwe'               = 'Absent'
+        'Microsoft.OutlookForWindows_1.0.0.0_neutral__8wekyb3d8bbwe'                   = 'Absent'
+        'Microsoft.PowerAutomateDesktop_11.2511.178.0_neutral_~_8wekyb3d8bbwe'         = 'Absent'
+        'Microsoft.Todos_2.176.7601.0_neutral_~_8wekyb3d8bbwe'                         = 'Absent'
+        'Microsoft.Windows.DevHome_0.100.128.0_neutral_~_8wekyb3d8bbwe'                = 'Absent'
+        'Microsoft.WindowsCamera_2022.2510.2.0_neutral_~_8wekyb3d8bbwe'                = 'Absent'
+        'Microsoft.WindowsFeedbackHub_2.2607.201.0_neutral_~_8wekyb3d8bbwe'            = 'Absent'
+        'Microsoft.YourPhone_1.26062.148.0_neutral_~_8wekyb3d8bbwe'                    = 'Absent' # Phone Link.
+        'MSTeams_1.0.0.1_x64__8wekyb3d8bbwe'                                           = 'Absent'
+        'MicrosoftWindows.Client.WebExperience_526.17301.80.9_neutral_~_cw5n1h2txyewy' = 'Absent' # Widgets.
 
         # Gaming apps, Xbox sign-in UI, and Game Bar are excluded from this profile.
-        'Microsoft.MicrosoftSolitaireCollection_4.25.4290.0_neutral_~_8wekyb3d8bbwe' = 'Absent'
-        'Microsoft.GamingApp_2026.514.51.0_neutral_~_8wekyb3d8bbwe'                  = 'Absent'
-        'Microsoft.Xbox.TCUI_1.23.28005.0_neutral_~_8wekyb3d8bbwe'                   = 'Absent'
-        'Microsoft.XboxGamingOverlay_7.325.7221.0_neutral_~_8wekyb3d8bbwe'           = 'Absent'
-        'Microsoft.XboxIdentityProvider_12.130.2510.6003_neutral_~_8wekyb3d8bbwe'    = 'Absent'
-        'Microsoft.XboxSpeechToTextOverlay_1.123.11001.0_neutral_~_8wekyb3d8bbwe'    = 'Absent'
+        'Microsoft.MicrosoftSolitaireCollection_4.25.4290.0_neutral_~_8wekyb3d8bbwe'   = 'Absent'
+        'Microsoft.GamingApp_2026.514.51.0_neutral_~_8wekyb3d8bbwe'                    = 'Absent'
+        'Microsoft.Xbox.TCUI_1.23.28005.0_neutral_~_8wekyb3d8bbwe'                     = 'Absent'
+        'Microsoft.XboxGamingOverlay_7.325.7221.0_neutral_~_8wekyb3d8bbwe'             = 'Absent'
+        'Microsoft.XboxIdentityProvider_12.130.2510.6003_neutral_~_8wekyb3d8bbwe'      = 'Absent'
+        'Microsoft.XboxSpeechToTextOverlay_1.123.11001.0_neutral_~_8wekyb3d8bbwe'      = 'Absent'
     }
 }

@@ -1,6 +1,6 @@
 # Installed-system audit
 
-When `Deployment` is configured, the independent audit also checks the installed Windows disk's GPT partition order, sizes, types, drive letters, 1 MiB alignment, and NTFS defaults; the generated computer-name pattern; the local account/profile name correspondence and administrator membership; and Windows RE availability. Expected partition sizes are calculated independently of the installer. A manual Setup fallback may produce a layout outside this automatic profile and will be reported accordingly. BitLocker protection status is observed without reading recovery keys; cloud recovery-key backup cannot be established by this audit.
+When `Deployment` is configured, the independent audit also checks the installed Windows disk's GPT partition order, sizes, types, drive letters, configured alignment, and NTFS defaults; the generated computer-name pattern; the local account/profile name correspondence and administrator membership; and Windows RE availability. Expected partition sizes are calculated independently of the installer. A manual Setup fallback may produce a layout outside this automatic profile and will be reported accordingly. BitLocker protection status is observed without reading recovery keys; cloud recovery-key backup cannot be established by this audit.
 
 `scripts/audit.ps1` inventories installed Windows and compares explicit requirements from `config/windows.psd1`. It does not prepare or modify an image, apply configuration, install dependencies, download payloads, or change services and policies. The existing computer is not the project baseline. Live collection belongs in the Stage 2 VM.
 
@@ -37,7 +37,7 @@ The launcher reports nonzero audit exits as a failed operation; inspect `audit.j
 | Servicing | All DISM-reported package names, states, and release types | Inventory only; update state may legitimately change. This is not an update compliance or vulnerability scan. |
 | Reboot | CBS `RebootPending`, Windows Update `RebootRequired`, nonempty `PendingFileRenameOperations` | Record indicators without exporting pending file paths. Their presence is informational; their absence does not rule out every reboot scenario. |
 
-App matching uses package name plus publisher ID, rather than a version-pinned full name. An updated Xbox package therefore still violates the removal rule. Provisioned packages do not expose a full dependency graph through the inventory interface; dependency evidence is captured for packages returned by Appx. This does not replace reviewing provisioning manifests and reverse dependencies before removal. All-user visibility describes what Appx exposes, not offline profile hive inspection or proof about every possible user profile.
+App matching uses package name plus publisher ID, rather than a version-pinned full name. A selected removal therefore still applies after a package version changes. Provisioned packages do not expose a full dependency graph through the inventory interface; dependency evidence is captured for packages returned by Appx. This does not replace reviewing provisioning manifests and reverse dependencies before removal. All-user visibility describes what Appx exposes, not offline profile hive inspection or proof about every possible user profile.
 
 All-user registrations read the native `UserSecurityId.Sid` field. Missing SID evidence makes the collection partial while preserving observed installation states. The configured VM reports contain valid native SID strings; provisioning was compared with the baseline, and retained registrations were checked against the configured VM's own audited user SID.
 
@@ -57,7 +57,7 @@ The collection APIs and their limits are documented by Microsoft: [Get-AppxPacka
 | `startedAtUtc`, `completedAtUtc` | UTC ISO 8601 timestamps; exclude from stable inventory comparisons. |
 | `context` | `mode` (`Live` or `Fixture`), PowerShell version, administrator status, invoking user SID, and Git commit if available. Commit alone does not identify uncommitted script changes. |
 | `configuration` | SHA-256 of the imported data file and the desired configuration snapshot, with an empty `Policies` map when omitted. |
-| `areas` | Nine named collections. Each has `status`, `scope`, `data`, and `errors`. `Complete` means the API query completed for its stated scope; `Partial` indicates known gaps; `Failed` indicates a failed query; `NotApplicable` is used when there are no selected policy rules. |
+| `areas` | Named collections defined by the report schema. Each has `status`, `scope`, `data`, and `errors`. `Complete` means the API query completed for its stated scope; `Partial` indicates known gaps; `Failed` indicates a failed query; `NotApplicable` is used when there are no selected policy rules. |
 | `checks` | One result per requirement/observation: `area`, `id`, `expected`, `actual`, `status`, and `reason`. Status is `Compliant`, `NonCompliant`, `NotVerified`, or `NotApplicable`. Unknown absence is represented by `actual: null`, not an empty inventory presented as success. |
 | `summary` | Counts of each check status and incomplete areas. |
 | `exitCode` | Bit 1 indicates mismatches, bit 2 indicates incomplete collection or unresolved verification. See the exit table. |
@@ -76,6 +76,8 @@ The `Policies` map describes reviewed requirements using `Path`, `Name`, `Kind`,
 
 A missing key/value or type/value mismatch is `NonCompliant`. For `Verification = 'LocalGpo'`, compliance additionally requires a matching entry in the installed Machine/User `Registry.pol`, a nonzero version for that scope, and registry-extension metadata in `gpt.ini`. The audit decodes those files without LGPO and does not change them. This verifies delivery and registry state; `effectiveState` remains `NotVerified` for behavioral effects. HKCU covers the invoking account. An ordinary observation without `LocalGpo` verification retains `NotVerified` and exit bit 2 even when its registry value matches. An edition outside reviewed applicability is `NotApplicable`.
 
+When a rule includes `FileContent`, the referenced JSON file must also be present and match its configured text. The audit reads only JSON paths referenced within the local Group Policy directory. A missing or changed file is noncompliant even when registry values match. This verifies native policy delivery; it does not enforce current user choices after a one-time Start layout has been applied.
+
 ## Local verification
 
 Run the fixture suite without elevation:
@@ -85,7 +87,7 @@ powershell.exe -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File te
 pwsh.exe -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File tests/audit.tests.ps1
 ```
 
-The tests inject all nine synthetic collectors and synthetic execution context; they never fall back to live Windows collection. Temporary fixture report labels contain a random identifier to isolate test invocations. Reports are marked `mode: Fixture` and remain ignored by Git. Tests cover matching state, updated app identities, separate provisioning/registration findings, dependency serialization, insufficient visibility, failed collectors, pending/unavailable features, policy applicability/effectiveness limits, malformed configuration, duplicate app families, report preservation, path restrictions, and repeatability. PowerShell 7 additionally validates reports against the JSON schema when running the tests. These checks do not prove that live collection works.
+The tests inject synthetic collectors and execution context; they never fall back to live Windows collection. Temporary fixture report labels contain a random identifier to isolate test invocations. Reports are marked `mode: Fixture` and remain ignored by Git. Tests cover matching state, updated app identities, separate provisioning/registration findings, dependency serialization, insufficient visibility, failed collectors, pending/unavailable features, policy applicability/effectiveness limits, malformed configuration, duplicate app families, report preservation, path restrictions, and repeatability. PowerShell 7 additionally validates reports against the JSON schema when running the tests. These checks do not prove that live collection works.
 
 ## Stage 2 VM verification
 
