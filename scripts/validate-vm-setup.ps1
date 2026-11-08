@@ -5,7 +5,7 @@
 Validates the test answer file with Windows SIM and checks the created VM.
 .DESCRIPTION
 Creates a Windows SIM catalog for the exported Pro WIM if necessary. Validates
-a rendered answer with a synthetic password, never the actual VM password.
+a production deployment answer, or the baseline answer with a synthetic password.
 Writes validation.json under .local/vm-validation. Does not start the VM.
 #>
 [CmdletBinding()]
@@ -43,21 +43,35 @@ try {
     if ($vm.Name -cne $settings.vm.Name -or $vm.State -ne 'Off' -or $vm.Generation -ne 2 -or $processor.Count -ne $settings.vm.ProcessorCount -or $processor.ExposeVirtualizationExtensions -ne $settings.vm.ExposeVirtualizationExtensions -or $memory.Startup -ne $settings.vm.MemoryBytes -or $memory.DynamicMemoryEnabled -or [string]$firmware.SecureBoot -ne 'On' -or -not $security.TpmEnabled -or $disks.Count -ne 1 -or $disks[0].Path -ine $metadata.vhdPath) { throw 'The actual VM does not match the powered-off test profile.' }
     $vhd = Get-VHD -Path $disks[0].Path
     if ($vhd.VhdType -ne 'Dynamic' -or $vhd.Size -ne $settings.vm.DiskBytes -or @(Get-VMNetworkAdapter -VM $vm | Where-Object { $_.SwitchName }).Count -gt 0) { throw 'Unexpected VHD or network configuration.' }
-    if ((Get-FileHash -LiteralPath $metadata.seedIsoPath -Algorithm SHA256).Hash -cne $metadata.seedIsoSha256) { throw 'Answer-file ISO changed after VM creation.' }
-    $secretAcl = Get-Acl -LiteralPath (Join-Path $settings.directory 'secrets')
-    $ownerSid = $secretAcl.GetOwner([Security.Principal.SecurityIdentifier]).Value
-    $allowedSids = @($ownerSid, 'S-1-5-18', 'S-1-5-32-544')
-    if (-not $secretAcl.AreAccessRulesProtected -or @($secretAcl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]) | Where-Object { $_.IdentityReference.Value -notin $allowedSids }).Count -gt 0) { throw 'Credential directory permissions are broader than its owner, SYSTEM, and Administrators.' }
+    if ($VMProfile -eq 'Baseline') {
+        if ((Get-FileHash -LiteralPath $metadata.seedIsoPath -Algorithm SHA256).Hash -cne $metadata.seedIsoSha256) { throw 'Answer-file ISO changed after VM creation.' }
+        $secretAcl = Get-Acl -LiteralPath (Join-Path $settings.directory 'secrets')
+        $ownerSid = $secretAcl.GetOwner([Security.Principal.SecurityIdentifier]).Value
+        $allowedSids = @($ownerSid, 'S-1-5-18', 'S-1-5-32-544')
+        if (-not $secretAcl.AreAccessRulesProtected -or @($secretAcl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier]) | Where-Object { $_.IdentityReference.Value -notin $allowedSids }).Count -gt 0) { throw 'Credential directory permissions are broader than its owner, SYSTEM, and Administrators.' }
+    }
+    elseif ($metadata.seedIsoPath -or @(Get-VMDvdDrive -VM $vm | Where-Object { $_.Path }).Count -ne 1) { throw 'The configured VM must use only the deployment ISO, without answer media.' }
     $record.vm = @{ name = $vm.Name; state = [string]$vm.State; secureBoot = [string]$firmware.SecureBoot; tpmEnabled = $security.TpmEnabled; diskType = [string]$vhd.VhdType; network = 'Disconnected'; nestedVirtualization = $processor.ExposeVirtualizationExtensions }
     $toolchain = Get-Content -LiteralPath (Join-Path $settings.root 'config\toolchain.lock.json') -Raw | ConvertFrom-Json
     foreach ($file in $toolchain.adk.wsim.files.PSObject.Properties) {
         if ((Get-FileHash -LiteralPath (Join-Path $toolchain.adk.wsim.directory $file.Name) -Algorithm SHA256).Hash -cne $file.Value) { throw "Windows SIM binary does not match its lock: $($file.Name)" }
     }
-    $secure = [Security.SecureString]::new()
-    foreach ($character in 'Validation-only!9'.ToCharArray()) { $secure.AppendChar($character) }
-    $credential = [pscredential]::new($settings.vm.AccountName, $secure)
     $answerPath = Join-Path $output 'autounattend.xml'
-    [IO.File]::WriteAllText($answerPath, (Get-TestVMAnswer -Settings $settings -Credential $credential), [Text.UTF8Encoding]::new($false))
+    $templatePath = Join-Path $settings.root 'setup\vm\autounattend.xml'
+    if ($VMProfile -eq 'Baseline') {
+        $secure = [Security.SecureString]::new()
+        foreach ($character in 'Validation-only!9'.ToCharArray()) { $secure.AppendChar($character) }
+        $credential = [pscredential]::new($settings.vm.AccountName, $secure)
+        [IO.File]::WriteAllText($answerPath, (Get-TestVMAnswer -Settings $settings -Credential $credential), [Text.UTF8Encoding]::new($false))
+    }
+    else {
+        . (Join-Path $settings.root 'setup\deployment\install.ps1')
+        $templatePath = Join-Path $settings.root 'setup\deployment\autounattend.xml'
+        $layout = Get-DeploymentLayout -DiskBytes $settings.vm.DiskBytes -Configuration $settings.windows
+        $template = [xml](Get-Content -LiteralPath $templatePath -Raw)
+        $answer = New-DeploymentAnswer -Template $template -Configuration $settings.windows -DiskNumber 0 -Layout $layout -MachineName 'DT-WSIM123'
+        $answer.Save($answerPath)
+    }
     $rendered = [xml](Get-Content -LiteralPath $answerPath -Raw)
     $imageSelection = $rendered.SelectSingleNode('//*[local-name()="MetaData"]/*[local-name()="Value"]')
     if ($null -eq $imageSelection -or $imageSelection.InnerText -cne [string]$settings.imageIndex) { throw 'The answer file does not select the profile image index.' }
@@ -82,7 +96,7 @@ try {
         foreach ($inner in $Result.InnerResults) { Add-ValidationMessage $inner }
     }
     Add-ValidationMessage $result
-    $record.answer = @{ status = [string]$result.CurrentStatus; succeeded = $result.Succeeded; messages = @($messages.ToArray()); catalogPath = $imageInfo.CatalogPath; templateSha256 = (Get-FileHash -LiteralPath (Join-Path $settings.root 'setup\vm\autounattend.xml') -Algorithm SHA256).Hash }
+    $record.answer = @{ status = [string]$result.CurrentStatus; succeeded = $result.Succeeded; messages = @($messages.ToArray()); catalogPath = $imageInfo.CatalogPath; templateSha256 = (Get-FileHash -LiteralPath $templatePath -Algorithm SHA256).Hash }
     if (-not $result.Succeeded -or [string]$result.CurrentStatus -cne 'Pass') { throw 'Windows SIM validation returned errors or warnings; review validation.json.' }
     $record.status = 'Succeeded'
 }

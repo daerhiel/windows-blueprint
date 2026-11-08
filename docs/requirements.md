@@ -63,9 +63,25 @@ Elevated read-only inspection selected Windows 11 Pro (`Professional`) at index 
 - Dependency and compatibility validation of the [initial desktop selections](../config/README.md#desktop-selections) in the baseline VM before applying them.
 - Whether to test actual container execution in this iteration. If selected, define the runtime, compatible test image, sources, versions, and VM nested virtualization requirements separately from native feature enablement.
 
+## Deployment flow
+
+Installation uses Windows Setup and a generated unattended answer file without custom interactive prompts. Create the local user through the standard OOBE account page; do not embed a user name, password, or AutoLogon configuration in the image.
+
+Automatic disk preparation targets a single disk. If only one target disk is present, use it. If multiple target disks are present, use disk 0 only when it has no partitions. Otherwise, leave disk selection and partitioning to the standard Windows Setup UI, without automatic wiping or the project's C/D sizing. Exclude the installation medium from target disks. Failure to inspect partitions is not evidence that a disk is unpartitioned.
+
+For automatic preparation, calculate the configured partition sizes in WinPE and pass the resulting disk configuration to Windows Setup through the answer file. Windows Setup creates and formats the partitions.
+
+Use UEFI/GPT with EFI, MSR, C, Windows RE, optional D, and the remaining space unallocated. C is 12.5% of total disk capacity rounded to the nearest of 128, 256, 512, or 1024 GiB, with ties rounded upward. D equals C when it fits after the service partitions; otherwise omit it. C and D use NTFS defaults. Service partition sizes and alignment are set in `Deployment.Disk`.
+
+Generate a fresh `DT-` computer name with a seven-character random suffix for each installation. Keep English (United States) defaults and the user account page available. Disable optional privacy choices through OOBE settings and the selected policies; Pro retains required diagnostic data. Setup Dynamic Update is disabled so installation uses the prepared payload; normal Windows Update follows installation. Use the generic Pro installation key already used by the test profile, with activation handled separately.
+
+The first user is a local administrator created in OOBE. Microsoft account linking is allowed afterward. Retain standard BitLocker/device-encryption behavior; recovery-key backup to the Microsoft account requires the authenticated post-installation flow. Neither the builder nor audit collects recovery keys.
+
+Development media retain the Fast-compressed installation WIM. Do not export an ESD during development; final compression is a separate, explicit option.
+
 ## Decisions required before physical installation
 
-- The target disk and a verifiable method for selecting it in the installer.
+- Verify that the target disk satisfies the automatic selection rule, or select and partition it through Windows Setup.
 - A data backup and verification that restoration is possible.
 - Partitioning, encryption, and storage of recovery keys outside the repository.
 - Post-install driver provisioning and hardware verification scenarios; keep additional drivers and vendor utilities outside the generic base image.

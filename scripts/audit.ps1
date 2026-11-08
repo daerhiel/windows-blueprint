@@ -121,7 +121,7 @@ function Get-AuditGpoObservation {
 function Read-AuditConfiguration {
     param([string] $Path)
     $config = Import-PowerShellDataFile -LiteralPath $Path -ErrorAction Stop
-    $allowed = @('SchemaVersion', 'Edition', 'Architecture', 'Localization', 'OptionalFeatures', 'Capabilities', 'InboxApps', 'Policies')
+    $allowed = @('SchemaVersion', 'Edition', 'Architecture', 'Localization', 'OptionalFeatures', 'Capabilities', 'InboxApps', 'Policies', 'Deployment')
     foreach ($key in $config.Keys) { if ($allowed -notcontains $key) { throw "Unsupported configuration field: $key" } }
     if ($config.SchemaVersion -ne 1 -or $config.Edition -cnotin @('Pro', 'Enterprise') -or $config.Architecture -cne 'x64') {
         throw 'Expected configuration schema 1, edition Pro or Enterprise, and architecture x64.'
@@ -131,6 +131,16 @@ function Read-AuditConfiguration {
     }
     foreach ($key in $config.Localization.Keys) { if ($key -notin @('UiLanguage', 'InputLocales')) { throw "Unsupported Localization field: $key" } }
     foreach ($locale in $config.Localization.InputLocales) { if ($locale -isnot [string] -or [string]::IsNullOrWhiteSpace($locale)) { throw 'InputLocales entries must be nonempty strings.' } }
+    if ($config.ContainsKey('Deployment')) {
+        $deployment = $config.Deployment
+        if ($deployment.ComputerNamePrefix -notmatch '^[A-Za-z][A-Za-z0-9-]{0,7}$' -or $deployment.Disk -isnot [hashtable]) { throw 'Deployment requires a computer name prefix and disk configuration.' }
+        $disk = $deployment.Disk
+        if ($disk.WindowsFraction -le 0 -or $disk.WindowsFraction -gt 1 -or @($disk.WindowsSizesGiB).Count -eq 0 -or @($disk.WindowsSizesGiB | Where-Object { $_ -notin @(128, 256, 512, 1024) }).Count) { throw 'Invalid Windows partition sizing policy.' }
+        foreach ($field in @('EfiMiB', 'MsrMiB', 'RecoveryMiB', 'AlignmentMiB')) {
+            if ($disk[$field] -isnot [int] -or $disk[$field] -le 0) { throw ('Expected a positive MiB value: ' + $field) }
+        }
+        if ($disk.AlignmentMiB -ne 1) { throw 'Only the default 1 MiB Setup alignment is supported.' }
+    }
     foreach ($section in @('OptionalFeatures', 'Capabilities', 'InboxApps')) {
         if ($config[$section] -isnot [hashtable]) { throw "$section must be a key/value map." }
         $states = @('Present', 'Absent')
@@ -297,6 +307,34 @@ function Get-AuditCollectors {
                 })
             New-AuditArea -Data $items -Scope 'ConfiguredRegistryValues'
         }
+        Deployment       = {
+            param($config, $context, $directory)
+            $windows = Get-Partition -DriveLetter C -ErrorAction Stop
+            $disk = Get-Disk -Number $windows.DiskNumber -ErrorAction Stop
+            $partitions = @(Get-Partition -DiskNumber $disk.Number -ErrorAction Stop | Sort-Object PartitionNumber | ForEach-Object {
+                $volume = @($_ | Get-Volume -ErrorAction Stop)
+                $fileSystem = $null; $clusterBytes = $null
+                if ($volume.Count -eq 1) { $fileSystem = [string]$volume[0].FileSystem; $clusterBytes = $volume[0].AllocationUnitSize }
+                [ordered]@{ number = $_.PartitionNumber; sizeBytes = $_.Size; offsetBytes = $_.Offset; gptType = [string]$_.GptType; letter = [string]$_.DriveLetter; fileSystem = $fileSystem; clusterBytes = $clusterBytes }
+            })
+            $account = Get-LocalUser -SID $context.userSid -ErrorAction Stop
+            $profilePath = (Get-ItemProperty -LiteralPath ('HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\' + $context.userSid) -ErrorAction Stop).ProfileImagePath
+            $administrators = @(Get-LocalGroupMember -SID 'S-1-5-32-544' -ErrorAction Stop | ForEach-Object { $_.SID.Value })
+            $recovery = @(& reagentc.exe /info 2>&1 | ForEach-Object { [string]$_ })
+            if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect Windows RE configuration.' }
+            $encryption = @(foreach ($volume in @(Get-CimInstance -Namespace 'root\CIMV2\Security\MicrosoftVolumeEncryption' -ClassName Win32_EncryptableVolume -ErrorAction Stop | Where-Object { $_.DriveLetter -in @('C:', 'D:') })) {
+                $state = Invoke-CimMethod -InputObject $volume -MethodName GetProtectionStatus -ErrorAction Stop
+                if ($state.ReturnValue -ne 0) { throw 'Cannot inspect BitLocker protection status.' }
+                [ordered]@{ drive = $volume.DriveLetter; protectionStatus = $state.ProtectionStatus }
+            })
+            New-AuditArea -Data ([ordered]@{
+                computerName = $env:COMPUTERNAME; accountName = $account.Name; profilePath = $profilePath
+                administrator = ($context.userSid -in $administrators)
+                diskNumber = $disk.Number; diskId = $disk.UniqueId; diskModel = $disk.FriendlyName; diskSerial = $disk.SerialNumber
+                diskBytes = $disk.Size; partitionStyle = [string]$disk.PartitionStyle; partitions = $partitions
+                recoveryEnabled = (($recovery -join ' ') -match 'Windows RE status:\s+Enabled'); encryption = $encryption
+            }) -Scope 'DeploymentProfile'
+        }
         Servicing        = {
             param($config, $context, $directory)
             Import-AuditDism
@@ -417,12 +455,58 @@ function Compare-AuditConfiguration {
                     $actual = [ordered]@{ registry = $actual; localGpo = $gpo }
                     $status = 'NonCompliant'; $reason = 'The local GPO store or processing metadata differs from the configured policy.'
                     if ($gpo.metadataValid -and $gpo.valuePresent -and $gpo.kind -eq $rule.Kind -and (ConvertTo-Json -InputObject $gpo.value -Compress) -ceq (ConvertTo-Json -InputObject $rule.Value -Compress)) {
-                        $status = 'Compliant'; $reason = 'Local GPO delivery and registry state match; advertising behavior is not assessed.'
+                        $status = 'Compliant'; $reason = 'Local GPO delivery and registry state match; user-facing behavior is not assessed.'
                     }
                 }
             }
         }
         New-AuditCheck -Area 'Policies' -Id $id -Expected $Config.Policies[$id].Value -Actual $actual -Status $status -Reason $reason
+    }
+    if ($Config.ContainsKey('Deployment')) {
+        $area = $Areas.Deployment
+        if ($area.status -ne 'Complete') {
+            Compare-AuditValue -Area Deployment -Id Configuration -Expected 'Configured deployment profile' -Actual $null -Known $false
+        }
+        else {
+            $data = $area.data
+            $policy = $Config.Deployment.Disk
+            # Independently calculate expected sizes from observed disk capacity.
+            $size = @($policy.WindowsSizesGiB | Sort-Object @{ Expression = { [math]::Abs($_ * 1GB - $data.diskBytes * $policy.WindowsFraction) } }, @{ Expression = { $_ }; Descending = $true })[0] * 1GB
+            $available = [math]::Floor($data.diskBytes / 1MB) * 1MB - ($policy.EfiMiB + $policy.MsrMiB + $policy.RecoveryMiB + 4) * 1MB
+            $expectedPartitions = @(
+                @('C12A7328-F81F-11D2-BA4B-00A0C93EC93B', ($policy.EfiMiB * 1MB), '', 'FAT32'),
+                @('E3C9E316-0B5C-4DB8-817D-F92DF00215AE', ($policy.MsrMiB * 1MB), '', ''),
+                @('EBD0A0A2-B9E5-4433-87C0-68B6B72699C7', $size, 'C', 'NTFS'),
+                @('DE94BBA4-06D1-4D40-A16A-BFD50179D6AC', ($policy.RecoveryMiB * 1MB), '', 'NTFS')
+            )
+            if ($available -ge 2 * $size) { $expectedPartitions += ,@('EBD0A0A2-B9E5-4433-87C0-68B6B72699C7', $size, 'D', 'NTFS') }
+            Compare-AuditValue -Area Deployment -Id PartitionStyle -Expected GPT -Actual $data.partitionStyle -Known $true
+            Compare-AuditValue -Area Deployment -Id PartitionCount -Expected $expectedPartitions.Count -Actual @($data.partitions).Count -Known $true
+            $layoutMatches = @($data.partitions).Count -eq $expectedPartitions.Count
+            $alignmentMatches = $true; $ntfsDefaults = $true
+            for ($index = 0; $index -lt @($data.partitions).Count; $index++) {
+                $partition = $data.partitions[$index]
+                if ($index -lt $expectedPartitions.Count) {
+                    $expected = $expectedPartitions[$index]
+                    $layoutMatches = $layoutMatches -and $partition.gptType.Trim('{}') -ieq $expected[0] -and $partition.sizeBytes -eq $expected[1] -and $partition.letter.Trim([char]0) -ceq $expected[2] -and [string]$partition.fileSystem -ieq $expected[3]
+                }
+                $alignmentMatches = $alignmentMatches -and $partition.offsetBytes % ($policy.AlignmentMiB * 1MB) -eq 0
+                if ($partition.fileSystem -eq 'NTFS' -and $partition.clusterBytes -ne 4096) { $ntfsDefaults = $false }
+            }
+            Compare-AuditValue -Area Deployment -Id PartitionLayout -Expected $true -Actual $layoutMatches -Known $true
+            Compare-AuditValue -Area Deployment -Id PartitionAlignment -Expected $true -Actual $alignmentMatches -Known $true
+            Compare-AuditValue -Area Deployment -Id NtfsDefaults -Expected $true -Actual $ntfsDefaults -Known $true
+            Compare-AuditValue -Area Deployment -Id ComputerName -Expected ($Config.Deployment.ComputerNamePrefix + '<7 uppercase letters/digits>') -Actual $data.computerName -Known $true | ForEach-Object {
+                $_.status = 'NonCompliant'
+                if ($data.computerName -cmatch ('^' + [regex]::Escape($Config.Deployment.ComputerNamePrefix) + '[A-Z0-9]{7}$')) { $_.status = 'Compliant' }
+                $_
+            }
+            Compare-AuditValue -Area Deployment -Id LocalProfileName -Expected $data.accountName -Actual (Split-Path $data.profilePath -Leaf) -Known $true | ForEach-Object {
+                if ($_.expected -cne $_.actual) { $_.status = 'NonCompliant' }; $_
+            }
+            Compare-AuditValue -Area Deployment -Id Administrator -Expected $true -Actual $data.administrator -Known $true
+            Compare-AuditValue -Area Deployment -Id WindowsRE -Expected $true -Actual $data.recoveryEnabled -Known $true
+        }
     }
 }
 
@@ -468,6 +552,7 @@ function Invoke-WindowsAudit {
         $ancestor = [IO.Path]::GetDirectoryName($ancestor)
     }
     $order = @('Os', 'OptionalFeatures', 'Capabilities', 'ProvisionedApps', 'RegisteredApps', 'Services', 'Policies', 'Servicing', 'Reboot')
+    if ($config.ContainsKey('Deployment')) { $order += 'Deployment' }
     if ($null -eq $Collectors) { $Collectors = Get-AuditCollectors }
     foreach ($name in $order) { if (-not $Collectors.ContainsKey($name)) { throw "Collector missing: $name" } }
     if ($null -eq $Context) { $Context = Get-AuditContext }

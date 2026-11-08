@@ -5,7 +5,8 @@
 Starts the prepared test VM or inspects/audits it through PowerShell Direct.
 .DESCRIPTION
 Targets only the VM ID and VHDX recorded by new-test-vm.ps1. Networking must remain
-disconnected. Imports the local DPAPI credential without printing it. Audit runs
+disconnected. Configured audits accept the local account created in OOBE;
+baseline audits import the private DPAPI credential without printing it. Audit runs
 copy only the audit script and configuration to an owned guest working directory.
 #>
 [CmdletBinding(SupportsShouldProcess = $true)]
@@ -14,6 +15,7 @@ param(
     [ValidatePattern('^[a-z][a-z0-9-]{0,39}$')] [string] $ReportName = 'baseline',
     [ValidateRange(0, 1800)] [int] $WaitForGuestSeconds = 0,
     [ValidateSet('Baseline', 'Configured')] [string] $VMProfile = 'Baseline',
+    [pscredential] $Credential,
     [switch] $OpenConsole
 )
 Set-StrictMode -Version Latest
@@ -56,7 +58,10 @@ if ($Action -eq 'Start') {
     if ($validation.status -cne 'Succeeded' -or $validation.answer.status -cne 'Pass') { throw 'A clean Windows SIM/VM validation is required before starting installation.' }
     if ($validation.vm.name -cne $vm.Name) { throw 'Validation belongs to another VM.' }
     if ($vm.State -ne 'Off' -or $disks[0].Path -ine $metadata.vhdPath -or (Get-Item -LiteralPath $metadata.vhdPath).Length -gt 64MB) { throw 'Start is only for the powered-off fresh test disk without checkpoints, not an existing installation.' }
-    if ((Get-FileHash -LiteralPath $metadata.seedIsoPath -Algorithm SHA256).Hash -cne $metadata.seedIsoSha256) { throw 'Answer media changed after VM preparation.' }
+    if ($VMProfile -eq 'Baseline') {
+        if ((Get-FileHash -LiteralPath $metadata.seedIsoPath -Algorithm SHA256).Hash -cne $metadata.seedIsoSha256) { throw 'Answer media changed after VM preparation.' }
+    }
+    elseif ($metadata.seedIsoPath -or @(Get-VMDvdDrive -VM $vm | Where-Object { $_.Path }).Count -ne 1) { throw 'Configured installation must use only the deployment ISO.' }
     $dvds = @(Get-VMDvdDrive -VM $vm | Where-Object { $_.Path -and $_.Path -ine $metadata.seedIsoPath })
     if ($dvds.Count -ne 1 -or (Get-FileHash -LiteralPath $dvds[0].Path -Algorithm SHA256).Hash -cne $metadata.isoSha256) { throw 'The attached source ISO differs from the recorded input.' }
     Start-VM -VM $vm
@@ -85,7 +90,7 @@ if ($Action -eq 'Capture') {
     $reportLabels = @('baseline', 'baseline-repeat')
     if ($VMProfile -eq 'Configured') { $reportLabels = @('configured', 'configured-repeat') }
     foreach ($name in $reportLabels) {
-        & $PSCommandPath -Action Audit -ReportName $name -VMProfile $VMProfile
+        & $PSCommandPath -Action Audit -ReportName $name -VMProfile $VMProfile -Credential $Credential
     }
     $first = Get-Content -LiteralPath (Join-Path $output ($reportLabels[0] + '\audit.json')) -Raw | ConvertFrom-Json
     $second = Get-Content -LiteralPath (Join-Path $output ($reportLabels[1] + '\audit.json')) -Raw | ConvertFrom-Json
@@ -143,7 +148,10 @@ try {
             if ($vm.State -ne 'Running') { throw 'The VM stopped while waiting for Windows.' }
         }
     }
-    $credential = Import-Clixml -LiteralPath (Join-Path $settings.directory 'secrets\credential.clixml')
+    if ($null -eq $Credential) {
+        if ($VMProfile -eq 'Configured') { throw 'Provide -Credential for the local administrator created through OOBE; the configured image contains no test credentials.' }
+        $Credential = Import-Clixml -LiteralPath (Join-Path $settings.directory 'secrets\credential.clixml')
+    }
     $session = New-PSSession -VMId $vm.Id -Credential $credential -ErrorAction Stop
     try {
         $inspection = Invoke-Command -Session $session -ScriptBlock {
@@ -175,12 +183,16 @@ try {
         }
         $installedVersion = '10.0.' + $inspection.build + '.' + $inspection.revision
         $firstSignInConfirmed = $inspection.desktopShellRunning
+        $checkpointVerified = $false
         $checkpointPath = Join-Path $output 'checkpoint.json'
-        if (-not $firstSignInConfirmed -and (Test-Path -LiteralPath $checkpointPath)) {
+        if (Test-Path -LiteralPath $checkpointPath) {
             $previousCapture = Get-Content -LiteralPath $checkpointPath -Raw | ConvertFrom-Json
-            $firstSignInConfirmed = $previousCapture.vmId -ceq $metadata.vmId -and @(Get-VMSnapshot -VM $vm | Where-Object { [string]$_.Id -ceq $previousCapture.id }).Count -eq 1
+            $checkpointVerified = $previousCapture.vmId -ceq $metadata.vmId -and @(Get-VMSnapshot -VM $vm | Where-Object { [string]$_.Id -ceq $previousCapture.id }).Count -eq 1
+            $firstSignInConfirmed = $firstSignInConfirmed -or $checkpointVerified
         }
-        if ($inspection.imageState -ne 'IMAGE_STATE_COMPLETE' -or $inspection.systemSetupInProgress -ne 0 -or $inspection.oobeInProgress -ne 0 -or ($Action -ne 'Limited' -and -not $firstSignInConfirmed) -or -not $inspection.isAdministrator -or $inspection.editionId -cne 'Professional' -or $inspection.systemPreferredUiLanguage -cne 'en-US' -or $installedVersion -cne $settings.source.selectedImage.version -or $inspection.partitionStyle -ne 'GPT' -or $inspection.recoveryExitCode -ne 0 -or ($inspection.recovery -join ' ') -notmatch 'Windows RE status:\s+Enabled') { throw 'Complete source-matching Pro setup, confirmed first sign-in, administrator access, GPT, and enabled Windows RE are required before baseline collection.' }
+        $versionMatches = $installedVersion -ceq $settings.source.selectedImage.version
+        if ($VMProfile -eq 'Configured' -and $Action -eq 'Audit' -and $checkpointVerified) { $versionMatches = [version]$installedVersion -ge [version]$settings.source.selectedImage.version }
+        if ($inspection.imageState -ne 'IMAGE_STATE_COMPLETE' -or $inspection.systemSetupInProgress -ne 0 -or $inspection.oobeInProgress -ne 0 -or ($Action -ne 'Limited' -and -not $firstSignInConfirmed) -or -not $inspection.isAdministrator -or $inspection.editionId -cne 'Professional' -or $inspection.systemPreferredUiLanguage -cne 'en-US' -or -not $versionMatches -or $inspection.partitionStyle -ne 'GPT' -or $inspection.recoveryExitCode -ne 0 -or ($inspection.recovery -join ' ') -notmatch 'Windows RE status:\s+Enabled') { throw 'Complete Pro setup, confirmed first sign-in, administrator access, GPT, enabled Windows RE, and the expected OS version are required before collection.' }
         $destination = Join-Path $output $ReportName
         if (Test-Path -LiteralPath $destination) { throw 'Host report directory already exists; previous audit evidence is never overwritten.' }
         $guestRoot = 'C:\WindowsProject'

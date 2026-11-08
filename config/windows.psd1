@@ -3,6 +3,18 @@
     Edition          = 'Pro'
     Architecture     = 'x64'
 
+    Deployment       = @{
+        ComputerNamePrefix = 'DT-'
+        Disk = @{
+            WindowsFraction = 0.125
+            WindowsSizesGiB = @(128, 256, 512, 1024)
+            EfiMiB          = 512
+            MsrMiB          = 16
+            RecoveryMiB     = 2048
+            AlignmentMiB    = 1
+        }
+    }
+
     Localization     = @{
         # Keep the Windows display language in English.
         UiLanguage   = 'en-US'
@@ -63,6 +75,42 @@
     # Local GPO files are compiled into the WIM by build-image.ps1.
     # Verification covers GPO delivery and registry state, not all advertising behavior.
     Policies         = @{
+        # https://learn.microsoft.com/windows/client-management/mdm/policy-csp-system#allowtelemetry
+        RequiredDiagnosticDataOnly = @{
+            Path         = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection'
+            Name         = 'AllowTelemetry'
+            Kind         = 'DWord'
+            Value        = 1
+            Editions     = @('Professional', 'Enterprise')
+            Verification = 'LocalGpo'
+        }
+        # https://learn.microsoft.com/windows/client-management/mdm/policy-csp-system#allowlocation
+        DisableLocation = @{
+            Path         = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors'
+            Name         = 'DisableLocation'
+            Kind         = 'DWord'
+            Value        = 1
+            Editions     = @('Professional', 'Enterprise')
+            Verification = 'LocalGpo'
+        }
+        # https://learn.microsoft.com/windows/client-management/mdm/policy-csp-experience#allowfindmydevice
+        DisableFindMyDevice = @{
+            Path         = 'HKLM:\SOFTWARE\Policies\Microsoft\FindMyDevice'
+            Name         = 'AllowFindMyDevice'
+            Kind         = 'DWord'
+            Value        = 0
+            Editions     = @('Professional', 'Enterprise')
+            Verification = 'LocalGpo'
+        }
+        # https://learn.microsoft.com/windows/client-management/mdm/policy-csp-privacy#allowinputpersonalization
+        DisableOnlineSpeech = @{
+            Path         = 'HKLM:\SOFTWARE\Policies\Microsoft\InputPersonalization'
+            Name         = 'AllowInputPersonalization'
+            Kind         = 'DWord'
+            Value        = 0
+            Editions     = @('Professional', 'Enterprise')
+            Verification = 'LocalGpo'
+        }
         # https://learn.microsoft.com/windows/client-management/mdm/policy-csp-privacy#disableadvertisingid
         DisableAdvertisingId = @{
             Path         = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\AdvertisingInfo'

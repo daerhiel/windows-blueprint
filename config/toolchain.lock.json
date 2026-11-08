@@ -38,5 +38,54 @@
       "dismapi.dll": "081192A3E4DF9BC6DDC9C12BDF061D8A0DF31C3515FC3E32B2E4DFB1D9CFF45C",
       "Microsoft.Dism.Powershell.dll": "EAF738251D1A4AD3D4FBFF050EB6F1BEC7EBAEB60CF331CA0D69081816413181"
     }
+  },
+  "winpe": {
+    "version": "10.1.26100.9457",
+    "imageBuild": 26100,
+    "setupUrl": "https://go.microsoft.com/fwlink/?linkid=2289981",
+    "setupSha256": "D4DE67ACC83DE253CCC941DD0590808D83726BDD8EA768A374A7BEAFF7949D6A",
+    "packageDirectory": ".local/tools/winpe/Windows Kits/10/Assessment and Deployment Kit/Windows Preinstallation Environment/amd64/WinPE_OCs",
+    "packages": [
+      {
+        "path": "WinPE-WMI.cab",
+        "sha256": "D3CAFE5AFB7A847889BC6770F11AA3B9C6046B4C46249F50A892B795D4E73401"
+      },
+      {
+        "path": "en-us/WinPE-WMI_en-us.cab",
+        "sha256": "C7D21CB57B57B3DB78CBEA7B39B334CDBCB9CF591B5273C4AD0BB16496B38F92"
+      },
+      {
+        "path": "WinPE-NetFX.cab",
+        "sha256": "CE42BAE126DF62012ABE3C48E8DCDC299C675D25C9B59885BF25D20F59F6A464"
+      },
+      {
+        "path": "en-us/WinPE-NetFX_en-us.cab",
+        "sha256": "C2D8B09F97E868EAA2C8725F7B57635A03ECEB353401F6638310D868B121C18D"
+      },
+      {
+        "path": "WinPE-Scripting.cab",
+        "sha256": "0466E98CFCB76720CE65EDA089C0D290F6C925406A01FFFF03A2542FF04B5CDD"
+      },
+      {
+        "path": "en-us/WinPE-Scripting_en-us.cab",
+        "sha256": "9FE4F769369CEE4D23A9434C5D99E7952595CBB9678FCB59208AC8192A2B8836"
+      },
+      {
+        "path": "WinPE-PowerShell.cab",
+        "sha256": "76E6612389C15FB046CFD17020590DA51DECDEB94C8D7C584D35F93BC7E20BB7"
+      },
+      {
+        "path": "en-us/WinPE-PowerShell_en-us.cab",
+        "sha256": "64DA49A0BB63825C62EF62D99A16D62FDEF66697CFAB27C70C55C10224DE31A9"
+      },
+      {
+        "path": "WinPE-StorageWMI.cab",
+        "sha256": "6517F5F546FA3D70F43BC578EF667E37209C42FA555FCFAA112AD001E7B4455B"
+      },
+      {
+        "path": "en-us/WinPE-StorageWMI_en-us.cab",
+        "sha256": "5F8211095471FE5B076D6E1B0645DFD2318A1A6BAA143738CD67CECC0989062F"
+      }
+    ]
   }
 }

@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-Creates the isolated Hyper-V test VM and its local answer-file ISO.
+Creates an isolated Hyper-V test VM; only the baseline needs answer media.
 .DESCRIPTION
 Run through run-elevated.ps1. CheckOnly performs preflight without creating a VM.
 The installation ISO is hash-checked and remains unchanged. Only a newly created
@@ -28,15 +28,21 @@ function Get-TestVMConfiguration {
     $imageIndex = $source.selectedImage.index
     if ($VMProfile -eq 'Configured') {
         $vm.Name += '-Configured'
+        $vm.DiskBytes = $vm.ConfiguredDiskBytes
+        $vm.Remove('ComputerName')
+        $vm.Remove('TimeZone')
+        $vm.Remove('AccountName')
         $directory += '-configured'
         $imageIndex = 1
     }
+    $vm.Remove('ConfiguredDiskBytes')
     @{ root = $root; vm = $vm; windows = $windows; source = $source; directory = $directory; profile = $VMProfile; imageIndex = $imageIndex }
 }
 
 function Get-TestVMAnswer {
     [OutputType([string])]
     param($Settings, [pscredential] $Credential)
+    if ($Settings.profile -eq 'Configured') { throw 'Configured installation uses the deployment answer embedded in its ISO and creates its user in OOBE.' }
     $xml = [xml](Get-Content -LiteralPath (Join-Path $Settings.root 'setup\vm\autounattend.xml') -Raw)
     $values = @{
         '__INPUT_LOCALES__'   = (@($Settings.windows.Localization.InputLocales) -join ';')
@@ -95,6 +101,7 @@ function Get-TestVMPreflight {
     $expectedIsoSize = $Settings.source.iso.sizeBytes
     if ($Settings.profile -eq 'Configured') {
         $media = Get-Content -LiteralPath (Join-Path $Settings.root '.local\media\windows11-pro\operation.json') -Raw | ConvertFrom-Json
+        if (-not $media.deployment) { throw 'Configured VM requires the integrated deployment ISO.' }
         $build = Get-Content -LiteralPath (Join-Path $Settings.root '.local\build\windows11-pro\operation.json') -Raw | ConvertFrom-Json
         if ($media.status -cne 'Succeeded' -or @($media.cleanupErrors).Count -ne 0 -or $media.imageIndex -ne 1 -or $media.filesVerified -lt 1 -or $media.sourceIsoSha256 -cne $Settings.source.iso.sha256 -or $build.status -cne 'Succeeded' -or $media.outputWimSha256 -cne $build.outputWimSha256 -or (Get-FileHash -LiteralPath (Join-Path $Settings.root 'config\windows.psd1') -Algorithm SHA256).Hash -cne $media.configurationSha256) { throw 'Configured media is unverified or stale; rebuild it before VM creation.' }
         $expectedIsoHash = $media.isoSha256
@@ -140,7 +147,7 @@ while ($ancestor) {
 }
 $preflight = Get-TestVMPreflight -Settings $settings -IsoPath $IsoPath
 if ($CheckOnly) { $preflight; return }
-if (-not $PSCmdlet.ShouldProcess($settings.directory, 'Create isolated Hyper-V VM, new VHDX, local credentials, and answer-file ISO')) { return }
+if (-not $PSCmdlet.ShouldProcess($settings.directory, 'Create isolated Hyper-V VM and new VHDX for the selected installation profile')) { return }
 $parent = Split-Path $settings.directory -Parent
 [IO.Directory]::CreateDirectory($parent) | Out-Null
 $lockPath = $settings.directory + '.lock'
@@ -149,24 +156,29 @@ $lock = [IO.FileStream]::new($lockPath, [IO.FileMode]::CreateNew, [IO.FileAccess
 try {
     if (Test-Path -LiteralPath $settings.directory) { throw 'The VM directory was created concurrently; refusing to reuse it.' }
     Set-TestVMPrivateDirectory -Path $settings.directory
-    $secretDirectory = Join-Path $settings.directory 'secrets'
-    Set-TestVMPrivateDirectory -Path $secretDirectory
-    $mediaDirectory = Join-Path $settings.directory 'media'
-    [IO.Directory]::CreateDirectory($mediaDirectory) | Out-Null
-    $bytes = [byte[]]::new(24)
-    $rng = [Security.Cryptography.RandomNumberGenerator]::Create()
-    try { $rng.GetBytes($bytes) } finally { $rng.Dispose() }
-    $securePassword = [Security.SecureString]::new()
-    foreach ($character in ('Vm!9' + [Convert]::ToBase64String($bytes)).ToCharArray()) { $securePassword.AppendChar($character) }
-    $securePassword.MakeReadOnly()
-    $credential = [pscredential]::new($settings.vm.AccountName, $securePassword)
-    $credential | Export-Clixml -LiteralPath (Join-Path $secretDirectory 'credential.clixml')
-    $answer = Get-TestVMAnswer -Settings $settings -Credential $credential
-    [IO.File]::WriteAllText((Join-Path $mediaDirectory 'autounattend.xml'), $answer, [Text.UTF8Encoding]::new($false))
-    $answer = $null
-    $seedIso = Join-Path $settings.directory 'answer.iso'
-    & $preflight.oscdimgPath -u2 -udfver102 -lWIN11ANSWER $mediaDirectory $seedIso | Out-Null
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $seedIso)) { throw 'Answer-file ISO creation failed.' }
+    $seedIso = $null
+    $seedHash = $null
+    if ($VMProfile -eq 'Baseline') {
+        $secretDirectory = Join-Path $settings.directory 'secrets'
+        Set-TestVMPrivateDirectory -Path $secretDirectory
+        $mediaDirectory = Join-Path $settings.directory 'media'
+        [IO.Directory]::CreateDirectory($mediaDirectory) | Out-Null
+        $bytes = [byte[]]::new(24)
+        $rng = [Security.Cryptography.RandomNumberGenerator]::Create()
+        try { $rng.GetBytes($bytes) } finally { $rng.Dispose() }
+        $securePassword = [Security.SecureString]::new()
+        foreach ($character in ('Vm!9' + [Convert]::ToBase64String($bytes)).ToCharArray()) { $securePassword.AppendChar($character) }
+        $securePassword.MakeReadOnly()
+        $credential = [pscredential]::new($settings.vm.AccountName, $securePassword)
+        $credential | Export-Clixml -LiteralPath (Join-Path $secretDirectory 'credential.clixml')
+        $answer = Get-TestVMAnswer -Settings $settings -Credential $credential
+        [IO.File]::WriteAllText((Join-Path $mediaDirectory 'autounattend.xml'), $answer, [Text.UTF8Encoding]::new($false))
+        $answer = $null
+        $seedIso = Join-Path $settings.directory 'answer.iso'
+        & $preflight.oscdimgPath -u2 -udfver102 -lWIN11ANSWER $mediaDirectory $seedIso | Out-Null
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $seedIso)) { throw 'Answer-file ISO creation failed.' }
+        $seedHash = (Get-FileHash -LiteralPath $seedIso -Algorithm SHA256).Hash
+    }
     $vhdPath = Join-Path $settings.directory 'system.vhdx'
     $vm = New-VM -Name $settings.vm.Name -Generation 2 -MemoryStartupBytes $settings.vm.MemoryBytes -NewVHDPath $vhdPath -NewVHDSizeBytes $settings.vm.DiskBytes -Path $settings.directory
     Set-VMMemory -VM $vm -DynamicMemoryEnabled $false
@@ -180,13 +192,13 @@ try {
     $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($vmSid, 'ReadAndExecute', 'ContainerInherit, ObjectInherit', 'None', 'Allow'))
     Set-Acl -LiteralPath $settings.directory -AclObject $acl
     $installationDvd = Add-VMDvdDrive -VM $vm -Path $preflight.isoPath -Passthru
-    Add-VMDvdDrive -VM $vm -Path $seedIso | Out-Null
+    if ($seedIso) { Add-VMDvdDrive -VM $vm -Path $seedIso | Out-Null }
     Set-VMFirmware -VM $vm -EnableSecureBoot On -SecureBootTemplate MicrosoftWindows -FirstBootDevice $installationDvd
     if (@(Get-VMHardDiskDrive -VM $vm).Count -ne 1 -or (Get-VMHardDiskDrive -VM $vm).Path -ine $vhdPath -or @(Get-VMNetworkAdapter -VM $vm | Where-Object { $_.SwitchName }).Count -ne 0) { throw 'Unexpected disk or network attachment; do not start this VM.' }
     $record = [ordered]@{
         schemaVersion = 1; status = 'Created'; vmId = [string]$vm.Id; name = $vm.Name; state = 'Off'
         directory = $settings.directory; vhdPath = $vhdPath; seedIsoPath = $seedIso
-        isoSha256 = $preflight.isoSha256; seedIsoSha256 = (Get-FileHash -LiteralPath $seedIso -Algorithm SHA256).Hash
+        isoSha256 = $preflight.isoSha256; seedIsoSha256 = $seedHash
         settings = $settings.vm; createdAtUtc = [DateTime]::UtcNow.ToString('o')
         profile = $settings.profile; imageIndex = $settings.imageIndex
     }

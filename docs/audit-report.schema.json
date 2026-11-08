@@ -148,6 +148,9 @@
                 ]
               }
             },
+            "Deployment": {
+              "type": "object"
+            },
             "Policies": {
               "type": "object",
               "additionalProperties": {
@@ -195,6 +198,9 @@
           "$ref": "#/definitions/area"
         },
         "Servicing": {
+          "$ref": "#/definitions/area"
+        },
+        "Deployment": {
           "$ref": "#/definitions/area"
         },
         "Reboot": {

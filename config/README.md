@@ -6,6 +6,12 @@
 
 The `Policies` map selects registry-backed local GPO settings. `Verification = 'LocalGpo'` requires the prepared Machine/User policy file and processing metadata, then matching installed registry state. The builder compiles the files directly into the WIM using the pinned LGPO tool; the installed system needs no project setup script or LGPO executable. Only reviewed DWORD rules are currently supported for offline compilation. Existing source policies are refused rather than overwritten. See [Stage 3](../docs/stage-03.md) for scope and verification limits.
 
+## Deployment
+
+`Deployment` defines the computer-name prefix and disk sizing used by the installation media. C is the nearest configured power-of-two size to `WindowsFraction` of total disk capacity, with ties upward. `WindowsSizesGiB` bounds the result. D equals C when it fits after EFI, MSR, C, and Windows RE; remaining capacity stays unallocated. `EfiMiB`, `MsrMiB`, and `RecoveryMiB` set the service partition sizes. Setup uses its default 1 MiB alignment and NTFS settings for C/D.
+
+The WinPE installer uses the sole target disk, or unpartitioned disk 0 when several targets exist. Otherwise it leaves selection and partitioning to Windows Setup. It generates the answer file automatically and leaves account creation to OOBE; account credentials do not belong in this configuration. See the [deployment requirements](../docs/requirements.md#deployment-flow).
+
 ## Architecture
 
 The deployment architecture is set separately in `Architecture`: the initial profile uses `x64`. Validate the source image architecture against this value before generating the catalog or building installation media.

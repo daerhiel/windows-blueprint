@@ -8,7 +8,7 @@ The `Policies` map in [windows.psd1](../config/windows.psd1) is an input to the 
 
 The installed system receives ordinary local GPO files as part of Windows. Windows processes computer policy at startup and user policy at sign-in. There is no separate policy-installation step, runtime LGPO executable, repository copy, first-logon setup script, or VM-specific configuration mechanism in the image. Changing a selected policy requires rebuilding the image from the pinned inputs.
 
-LGPO is a build-host dependency only. Its download URL, archive/executable fingerprints, and version are pinned in [toolchain.lock.json](../config/toolchain.lock.json); the downloaded files remain under ignored `.local/tools`. Build commands are in [build-plan step 21](build-plan.md).
+LGPO is a build-host dependency only. Its download URL, archive/executable fingerprints, and version are pinned in [toolchain.lock.json](../config/toolchain.lock.json); the downloaded files remain under ignored `.local/tools`. Build commands are in [build-plan step 22](build-plan.md).
 
 ## Initial Pro selections
 
@@ -18,6 +18,10 @@ LGPO is a build-host dependency only. Its download URL, archive/executable finge
 | `DisableFeedbackNotifications` | Machine | Suppress Windows feedback questions |
 | `DisableTailoredExperiences` | User | Prevent diagnostic personalization of offers |
 | `DisableThirdPartySuggestions` | User | Suppress third-party Spotlight suggestions |
+| `RequiredDiagnosticDataOnly` | Machine | Retain required diagnostic data without optional collection |
+| `DisableLocation` | Machine | Disable location services |
+| `DisableFindMyDevice` | Machine | Disable Find my device |
+| `DisableOnlineSpeech` | Machine | Disable online speech recognition |
 
 Each rule records its registry mapping, desired DWORD, reviewed editions, and `Verification = 'LocalGpo'`. Microsoft documents support for Pro and Enterprise: [advertising ID](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-privacy#disableadvertisingid), [feedback](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-experience#donotshowfeedbacknotifications), [tailored experiences](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-experience#allowtailoredexperienceswithdiagnosticdata), and [third-party suggestions](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-experience#allowthirdpartysuggestionsinwindowsspotlight). Broader consumer-experience and Windows-tips policies are reserved for separately reviewed Enterprise selections. Interface preferences are deferred.
 
@@ -29,7 +33,7 @@ The build verifies the compiled GPO entries and processing metadata before savin
 
 The existing [audit.ps1](../scripts/audit.ps1) reads the installed Machine/User local GPO stores and the actual selected registry values. `LocalGpo` compliance means both the GPO definition/processing metadata and the applicable registry state match. It does not mean that every advertising surface was tested; `effectiveState` remains `NotVerified` in the collected evidence. An ordinary registry observation without `Verification = 'LocalGpo'` retains its existing effectiveness limitation.
 
-The normal configured-VM installation and audit commands are unchanged. The host may collect reports, but it must not install or repair policies in the guest before auditing. Preserve the clean baseline; use a fresh configured installation to verify automatic delivery. Existing VM reports from an earlier image are not evidence for this integration.
+The configured VM now installs directly from the deployment ISO, with automatic disk sizing and account creation through native OOBE. Host-side audit access uses the account created in OOBE. The host must not install or repair policies in the guest before auditing. Preserve the clean baseline; use a fresh configured installation to verify the expanded profile. Reports from the initial advertising profile do not establish delivery of the additional privacy settings or the new deployment flow.
 
 ## Remaining sequence
 

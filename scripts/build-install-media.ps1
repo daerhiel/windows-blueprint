@@ -4,9 +4,9 @@
 .SYNOPSIS
 Packages the verified configured WIM with optional recovery compression to ESD.
 .DESCRIPTION
-Creates a generic bootable ISO without credentials or a disk-wiping answer file.
+Creates a bootable ISO with automatic disk preparation and native OOBE.
 Recreates only its own .local/media output, checks every embedded file by hash,
-and removes the staging tree after verification. VM answer media stays separate.
+and removes the staging tree after verification.
 #>
 [CmdletBinding()]
 param(
@@ -44,6 +44,8 @@ $buildLock = $null
 $sourceAttached = $false
 $targetAttached = $false
 $prepared = $false
+$bootMounted = $false
+$bootMount = Join-Path $output 'boot-mount'
 $operationPath = Join-Path $output 'operation.json'
 $operation = [ordered]@{ schemaVersion = 1; status = 'Running'; stage = 'Preflight'; startedAtUtc = [DateTime]::UtcNow.ToString('o'); sourceIsoSha256 = $source.iso.sha256; configurationSha256 = $null; outputWimSha256 = $null; imageIndex = 1; isoPath = $iso; isoSha256 = $null; isoSizeBytes = $null; filesVerified = 0; error = $null; cleanupErrors = @() }
 function Save-MediaOperation {
@@ -98,6 +100,12 @@ try {
     if ((Get-FileHash -LiteralPath $oscdimg.path -Algorithm SHA256).Hash -cne $oscdimg.sha256) { throw 'Oscdimg differs from the toolchain lock.' }
     $signature = Get-AuthenticodeSignature -LiteralPath $oscdimg.path
     if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') { throw 'Oscdimg must have a valid Microsoft signature.' }
+    Import-Module (Join-Path $toolchain.adk.dismDirectory 'Dism.psd1')
+    if (@(Get-WindowsImage -Mounted | Where-Object { $_.Path -ieq $bootMount -or $_.Path.StartsWith($output + '\', [StringComparison]::OrdinalIgnoreCase) }).Count) { throw 'The media output contains a mounted image; cleanup is refused.' }
+    $packageRoot = Join-Path $root $toolchain.winpe.packageDirectory
+    foreach ($package in $toolchain.winpe.packages) {
+        if ((Get-FileHash -LiteralPath (Join-Path $packageRoot $package.path)).Hash -cne $package.sha256) { throw ('WinPE package fingerprint mismatch: ' + $package.path) }
+    }
     Import-Module Storage
     if ((Test-Path -LiteralPath $iso) -and (Get-DiskImage -ImagePath $iso).Attached) { throw 'The previous output ISO is attached; cleanup is refused.' }
     if (Test-Path -LiteralPath $output) {
@@ -137,6 +145,70 @@ try {
             Copy-Item -LiteralPath $file.FullName -Destination $destination
             [pscustomobject]@{ path = $relative; sha256 = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash; origin = 'MicrosoftISO' }
         })
+    Write-MediaStage 'Prepare Windows Setup with automatic disk configuration'
+    $bootWim = Join-Path $output 'setup.wim'
+    $originalBoot = Join-Path $tree 'sources\boot.wim'
+    $bootInfo = Get-WindowsImage -ImagePath $originalBoot -Index 2
+    if (([version]$bootInfo.Version).Build -ne $toolchain.winpe.imageBuild) { throw 'WinPE optional components must match the Setup image build.' }
+    & $dismExe /Export-Image ('/SourceImageFile:' + $originalBoot) /SourceIndex:2 ('/DestinationImageFile:' + $bootWim) /Compress:max /Bootable /CheckIntegrity /English ('/LogPath:' + $dismLog) ('/ScratchDir:' + $scratch) | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Setup boot image export failed.' }
+    [IO.Directory]::CreateDirectory($bootMount) | Out-Null
+    & $dismExe /Mount-Image ('/ImageFile:' + $bootWim) /Index:1 ('/MountDir:' + $bootMount) /CheckIntegrity /English ('/LogPath:' + $dismLog) ('/ScratchDir:' + $scratch) | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Setup boot image mount failed.' }
+    $bootMounted = $true
+    foreach ($package in $toolchain.winpe.packages) {
+        & $dismExe /Image:$bootMount /Add-Package ('/PackagePath:' + (Join-Path $packageRoot $package.path)) /English ('/LogPath:' + $dismLog) ('/ScratchDir:' + $scratch) | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw ('WinPE package installation failed: ' + $package.path) }
+    }
+    $startup = @'
+$ErrorActionPreference = 'Stop'
+try {
+    $media = @(Get-Volume | Where-Object { $_.DriveLetter } | ForEach-Object {
+        $path = [string]$_.DriveLetter + ':\'
+        if ((Test-Path -LiteralPath ($path + 'deployment\install.ps1') -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath ($path + 'sources\boot.wim') -ErrorAction SilentlyContinue)) { $path }
+    })
+    if ($media.Count -ne 1) { throw 'Expected one project installation medium.' }
+    & ($media[0] + 'deployment\install.ps1') -MediaRoot $media[0]
+}
+catch {
+    Write-Error $_ -ErrorAction Continue
+    Start-Sleep -Seconds 30
+    & wpeutil.exe Shutdown
+}
+'@
+    $system32 = Join-Path $bootMount 'Windows\System32'
+    [IO.File]::WriteAllText((Join-Path $system32 'start-deployment.ps1'), $startup, [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllLines((Join-Path $system32 'winpeshl.ini'), @(
+        '[LaunchApps]', '%SYSTEMROOT%\System32\wpeinit.exe',
+        '%SYSTEMROOT%\System32\WindowsPowerShell\v1.0\powershell.exe, -NoLogo -NoProfile -ExecutionPolicy RemoteSigned -File X:\Windows\System32\start-deployment.ps1'
+    ), [Text.Encoding]::ASCII)
+    if (-not (Test-Path -LiteralPath (Join-Path $system32 'WindowsPowerShell\v1.0\powershell.exe'))) { throw 'WinPE PowerShell is missing.' }
+    $startupHashes = @{}
+    foreach ($name in @('winpeshl.ini', 'start-deployment.ps1')) { $startupHashes[$name] = (Get-FileHash -LiteralPath (Join-Path $system32 $name)).Hash }
+    & $dismExe /Unmount-Image ('/MountDir:' + $bootMount) /Commit /CheckIntegrity /English ('/LogPath:' + $dismLog) ('/ScratchDir:' + $scratch) | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Saving the Setup boot image failed.' }
+    $bootMounted = $false
+    & $dismExe /Mount-Image ('/ImageFile:' + $bootWim) /Index:1 ('/MountDir:' + $bootMount) /ReadOnly /CheckIntegrity /English ('/LogPath:' + $dismLog) ('/ScratchDir:' + $scratch) | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Reopening the saved Setup image failed.' }
+    $bootMounted = $true
+    foreach ($name in $startupHashes.Keys) {
+        if ((Get-FileHash -LiteralPath (Join-Path $system32 $name)).Hash -cne $startupHashes[$name]) { throw ('Saved Setup startup file differs: ' + $name) }
+    }
+    & $dismExe /Unmount-Image ('/MountDir:' + $bootMount) /Discard /English ('/LogPath:' + $dismLog) | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'Closing the verified Setup image failed.' }
+    $bootMounted = $false
+    Copy-Item -LiteralPath $bootWim -Destination $originalBoot -Force
+    $manifest = @($manifest | Where-Object { $_.path -ine 'sources\boot.wim' })
+    $manifest += [pscustomobject]@{ path = 'sources\boot.wim'; sha256 = (Get-FileHash -LiteralPath $originalBoot).Hash; origin = 'ConfiguredWinPE' }
+    [IO.Directory]::CreateDirectory((Join-Path $tree 'deployment')) | Out-Null
+    foreach ($name in @('autounattend.xml', 'install.ps1', 'windows.psd1')) {
+        $inputPath = Join-Path $root ('setup\deployment\' + $name)
+        if ($name -eq 'windows.psd1') { $inputPath = Join-Path $root 'config\windows.psd1' }
+        $relative = 'deployment\' + $name
+        Copy-Item -LiteralPath $inputPath -Destination (Join-Path $tree $relative)
+        $manifest += [pscustomobject]@{ path = $relative; sha256 = (Get-FileHash -LiteralPath $inputPath).Hash; origin = 'Deployment' }
+    }
+    $operation['deployment'] = $true
     $inputMetadata = Get-MediaImageInfo -ImagePath $wimPath
     $payloadName = 'install.wim'
     $outputMetadata = $inputMetadata
@@ -202,6 +274,13 @@ try {
 }
 catch { $operation.status = 'Failed'; $operation.error = $_.Exception.Message; if ($prepared) { Save-MediaOperation } }
 finally {
+    if ($bootMounted) {
+        try {
+            & $dismExe /Unmount-Image ('/MountDir:' + $bootMount) /Discard /English ('/LogPath:' + $dismLog) | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw 'Setup boot image cleanup failed.' }
+        }
+        catch { $operation.cleanupErrors += $_.Exception.Message }
+    }
     if ($targetAttached) {
         try { Dismount-DiskImage -ImagePath $iso | Out-Null } catch { $operation.cleanupErrors += $_.Exception.Message }
     }
@@ -217,4 +296,4 @@ finally {
     }
 }
 if ($operation.status -cne 'Succeeded') { throw ((@($operation.error) + @($operation.cleanupErrors)) -join [Environment]::NewLine) }
-Write-Output ('Verified installation media: ' + $iso + '; image index 1; no embedded answer file.')
+Write-Output ('Verified installation media: ' + $iso + '; image index 1; automatic disk preparation and native OOBE.')

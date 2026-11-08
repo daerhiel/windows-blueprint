@@ -25,6 +25,8 @@ The initial deployment profile targets x64 machines and requires an x64 source i
 
 [Stage 3: policies in the prepared image](docs/stage-03.md) integrates local GPO compilation into the existing WIM build and verification. The initial Pro rules address advertising and suggestions. A fresh installation passed repeated independent audits of component state, local GPO delivery, and registry values. Windows Update verification follows the complete configuration and deployment profile.
 
+The [deployment flow](docs/requirements.md#deployment-flow) adds automatic disk sizing through Windows Setup and local-user creation through native OOBE. Development media use the Fast-compressed WIM. Fresh-installation verification of this deployment flow remains required before the update cycle.
+
 [Requirements](docs/requirements.md) records accepted decisions and open questions.
 The [configuration guide](config/README.md) describes the initial profile and the captured component selection catalog.
 

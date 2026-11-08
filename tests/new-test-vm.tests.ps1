@@ -32,15 +32,15 @@ Assert-VMTest ($null -eq $xml.SelectSingleNode('//u:SkipMachineOOBE', $ns)) 'The
 Assert-VMTest ($xml.SelectSingleNode($setup + '/u:DynamicUpdate/u:Enable', $ns).InnerText -eq 'false') 'Setup Dynamic Update must be disabled for the offline baseline.'
 Assert-VMTest ($xml.SelectSingleNode($setup + '/u:ImageInstall/u:OSImage/u:InstallFrom/u:MetaData/u:Value', $ns).InnerText -eq [string]$settings.source.selectedImage.index) 'The image index must come from the source lock.'
 $configured = Get-TestVMConfiguration -VMProfile Configured
-$configuredXml = [xml](Get-TestVMAnswer -Settings $configured -Credential $credential)
-$configuredNs = [Xml.XmlNamespaceManager]::new($configuredXml.NameTable)
-$configuredNs.AddNamespace('u', 'urn:schemas-microsoft-com:unattend')
+$caught = $false
+try { Get-TestVMAnswer -Settings $configured -Credential $credential | Out-Null } catch { $caught = $true }
+Assert-VMTest $caught 'Configured installation must never generate private answer media.'
 Assert-VMTest ($configured.vm.Name -cne $settings.vm.Name) 'Configured installation must target a different VM name.'
 Assert-VMTest ($configured.directory -ine $settings.directory) 'Configured installation must use a different disk and secret directory.'
-Assert-VMTest ($configured.vm.ProcessorCount -eq $settings.vm.ProcessorCount -and $configured.vm.MemoryBytes -eq $settings.vm.MemoryBytes -and $configured.vm.DiskBytes -eq $settings.vm.DiskBytes) 'Both profiles must use the same virtual hardware.'
+Assert-VMTest ($configured.vm.ProcessorCount -eq $settings.vm.ProcessorCount -and $configured.vm.MemoryBytes -eq $settings.vm.MemoryBytes -and $configured.vm.DiskBytes -eq 2TB -and $settings.vm.DiskBytes -eq 80GB) 'Configured VM exercises C/D sizing on a dynamic disk while baseline hardware stays unchanged.'
 Assert-VMTest ($configured.imageIndex -eq 1) 'Configured media must select its single WIM image.'
 Assert-VMTest ($configured.source.selectedImage.index -eq $settings.source.selectedImage.index -and $settings.imageIndex -eq $settings.source.selectedImage.index) 'Configured selection must leave the official source and baseline index unchanged.'
-Assert-VMTest ($configuredXml.SelectSingleNode($setup + '/u:ImageInstall/u:OSImage/u:InstallFrom/u:MetaData/u:Value', $configuredNs).InnerText -ceq '1') 'The rendered configured answer must select index 1.'
+Assert-VMTest (-not $configured.vm.ContainsKey('AccountName') -and -not $configured.vm.ContainsKey('ComputerName') -and -not $configured.vm.ContainsKey('TimeZone')) 'Configured account comes from OOBE, host name from production setup, and time zone from Windows defaults.'
 Assert-VMTest ($xml.SelectSingleNode($setup + '/u:ImageInstall/u:OSImage/u:InstallTo/u:DiskID', $ns).InnerText -eq '0') 'Installation must target the newly created VM disk.'
 Assert-VMTest ($xml.SelectSingleNode($setup + '/u:ImageInstall/u:OSImage/u:InstallTo/u:PartitionID', $ns).InnerText -eq '3') 'Windows must target its GPT partition.'
 $partitions = @($xml.SelectNodes($setup + '/u:DiskConfiguration/u:Disk/u:CreatePartitions/u:CreatePartition', $ns))

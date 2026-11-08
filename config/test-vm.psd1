@@ -4,6 +4,7 @@
     ProcessorCount                 = 4
     MemoryBytes                    = 8GB
     DiskBytes                      = 80GB
+    ConfiguredDiskBytes            = 2TB
     AccountName                    = 'vmadmin'
     TimeZone                       = 'UTC'
     # The baseline VM has a disconnected network adapter and static memory.

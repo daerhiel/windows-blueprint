@@ -1,5 +1,7 @@
 # Installed-system audit
 
+When `Deployment` is configured, the independent audit also checks the installed Windows disk's GPT partition order, sizes, types, drive letters, 1 MiB alignment, and NTFS defaults; the generated computer-name pattern; the local account/profile name correspondence and administrator membership; and Windows RE availability. Expected partition sizes are calculated independently of the installer. A manual Setup fallback may produce a layout outside this automatic profile and will be reported accordingly. BitLocker protection status is observed without reading recovery keys; cloud recovery-key backup cannot be established by this audit.
+
 `scripts/audit.ps1` inventories installed Windows and compares explicit requirements from `config/windows.psd1`. It does not prepare or modify an image, apply configuration, install dependencies, download payloads, or change services and policies. The existing computer is not the project baseline. Live collection belongs in the Stage 2 VM.
 
 ## Invocation

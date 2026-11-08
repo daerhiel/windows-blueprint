@@ -63,6 +63,17 @@ function New-FixtureCollectors {
         })
     $areas.Servicing = New-AuditArea -Data @(@{ name = 'SyntheticUpdate'; state = 'Installed'; releaseType = 'SecurityUpdate' })
     $areas.Reboot = New-AuditArea -Data @{ indicatorPresent = $true; indicators = @{ cbsRebootPending = $true } }
+    $areas.Deployment = New-AuditArea -Data @{
+        computerName = 'DT-TEST123'; accountName = 'fixture.longname'; profilePath = 'C:\Users\fixture.longname'; administrator = $true
+        diskNumber = 0; diskBytes = 2TB; partitionStyle = 'GPT'; recoveryEnabled = $true
+        partitions = @(
+            @{ gptType = 'C12A7328-F81F-11D2-BA4B-00A0C93EC93B'; sizeBytes = 512MB; offsetBytes = 1MB; letter = ''; fileSystem = 'FAT32'; clusterBytes = 4096 }
+            @{ gptType = 'E3C9E316-0B5C-4DB8-817D-F92DF00215AE'; sizeBytes = 16MB; offsetBytes = 513MB; letter = ''; fileSystem = ''; clusterBytes = $null }
+            @{ gptType = 'EBD0A0A2-B9E5-4433-87C0-68B6B72699C7'; sizeBytes = 256GB; offsetBytes = 529MB; letter = 'C'; fileSystem = 'NTFS'; clusterBytes = 4096 }
+            @{ gptType = 'DE94BBA4-06D1-4D40-A16A-BFD50179D6AC'; sizeBytes = 2048MB; offsetBytes = (529MB + 256GB); letter = ''; fileSystem = 'NTFS'; clusterBytes = 4096 }
+            @{ gptType = 'EBD0A0A2-B9E5-4433-87C0-68B6B72699C7'; sizeBytes = 256GB; offsetBytes = (2577MB + 256GB); letter = 'D'; fileSystem = 'NTFS'; clusterBytes = 4096 }
+        )
+    }
     $collectors = @{}
     foreach ($name in $areas.Keys) {
         $result = $areas[$name]
@@ -86,6 +97,17 @@ Assert-AuditTest ($json.context.mode -eq 'Fixture' -and $json.schemaVersion -eq 
 Assert-AuditTest (@($json.areas.Capabilities.data).Count -eq 424 -and @($json.areas.ProvisionedApps.data).Count -eq 30) 'Inventory arrays must retain all fixture entries.'
 $second = Invoke-FixtureAudit 'repeat' (New-FixtureCollectors)
 Assert-AuditTest ((ConvertTo-Json -InputObject $good.areas -Depth 20 -Compress) -ceq (ConvertTo-Json -InputObject $second.areas -Depth 20 -Compress)) 'Identical collections must be comparable independently of run timestamps.'
+
+$deploymentCollectors = New-FixtureCollectors
+$deploymentData = (& $deploymentCollectors.Deployment).data
+$deploymentData.partitions[2].sizeBytes = 128GB
+$deploymentData.profilePath = 'C:\Users\fixture'
+$deploymentCollectors.Deployment = { New-AuditArea -Data $deploymentData }.GetNewClosure()
+$deploymentDrift = Invoke-FixtureAudit 'deployment-drift' $deploymentCollectors
+Assert-AuditTest (@($deploymentDrift.checks | Where-Object { $_.area -eq 'Deployment' -and $_.status -eq 'NonCompliant' }).Count -eq 2) 'Detect independent partition-size and profile-name drift.'
+$deploymentCollectors.Deployment = { throw 'Synthetic storage access denied.' }
+$deploymentIncomplete = Invoke-FixtureAudit 'deployment-incomplete' $deploymentCollectors
+Assert-AuditTest ($deploymentIncomplete.exitCode -eq 2 -and @($deploymentIncomplete.checks | Where-Object { $_.area -eq 'Deployment' -and $_.status -eq 'NotVerified' }).Count -eq 1) 'Incomplete deployment collection must not pass.'
 
 $collectors = New-FixtureCollectors
 $collectors.RegisteredApps = {
