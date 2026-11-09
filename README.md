@@ -23,7 +23,7 @@ The source image must match the deployment architecture selected in [windows.psd
 
 [Stage 2: clean VM and integration checks](docs/stage-02.md) established the component-only image and installation/audit cycle. Clean baseline and limited-user checks passed; repeated configured audits matched, with `configured-audited` saved.
 
-[Stage 3: policies in the prepared image](docs/stage-03.md) integrates local GPO compilation into the existing WIM build and verification. The initial Pro rules address advertising and suggestions. A fresh installation passed repeated independent audits of component state, local GPO delivery, and registry values. Windows Update verification follows the complete configuration and deployment profile.
+[Stage 3: policies in the prepared image](docs/stage-03.md) implements local GPO compilation in the existing WIM build and verification, with recurring operations provided by the maintained workflows. Fresh-installation, repeatability, post-update, and post-restart verification is complete for the configuration identified by the recorded reports, within the documented audit scope. Additional workflow development is not a prerequisite for final media packaging.
 
 The [deployment flow](docs/requirements.md#deployment-flow) adds automatic disk sizing through Windows Setup and local-user creation through native OOBE. Development media use the Fast-compressed WIM. A fresh installation passed matching independent audits of the selected components, expanded privacy policies, and deployment profile; the pre-update `configured-audited` checkpoint is preserved. Post-update audits passed the configured checks, including after a further restart, with no remaining reboot indicators.
 
