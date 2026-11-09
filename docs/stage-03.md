@@ -2,6 +2,8 @@
 
 Status: the expanded Pro privacy profile and deployment flow are verified through a fresh installation from the Fast-WIM development ISO. Independent audits matched the selected components, local GPO definitions and processing metadata, installed registry values, and deployment requirements. Stable pre-update inventories matched, and `configured-audited` is preserved. Audits after Windows Update and a further restart passed the configured checks, with no remaining reboot indicators or policy drift. The observed paused deployment was traced to a separate system-initiated app acquisition request. Source-image removal does not block later online acquisition; the accepted absence checks still assess provisioning and installed registrations.
 
+Policy delivery and the recurring operational workflows are implemented. Stage 3 verification is complete for the configuration identified by the recorded reports and within the verification limits below. The [automation map](automation-review.md) describes the implemented operations; final media packaging can use the existing build workflow without additional workflow development.
+
 Subsequent configuration changes require an image rebuild and a fresh installation before they are covered by this verification. Policy delivery, registry state, and selected app absence are part of the existing audit; changed OOBE behavior also requires fresh-installation verification. Generated reports record the exact configuration tested.
 
 ## Delivery
@@ -24,9 +26,9 @@ The existing [audit.ps1](../scripts/audit.ps1) reads the installed Machine/User 
 
 The configured VM installs directly from the deployment ISO, with automatic disk sizing and account creation through native OOBE. Host-side audit access uses the account created in OOBE. The host must not install or repair policies in the guest before auditing. The fresh-installation audits verified the expanded privacy profile, GPT partition sizes and alignment, NTFS defaults, computer-name format, local administrator profile, and enabled Windows RE. Reports, comparison results, and checkpoint metadata remain under ignored `.local/vm-configured`; the clean baseline is preserved.
 
-## Remaining sequence
+## Ongoing operations
 
-1. Review and implement the recurring operational scenarios proposed in the [automation review](automation-review.md) before final media preparation.
-2. Rebuild and repeat fresh-installation and post-update verification if configuration or audit requirements change.
+1. When preparing or refreshing final media, use the implemented [build workflow](../workflows/README.md#build) and the [build plan](build-plan.md). Recovery-compressed ESD export remains an explicit packaging option.
+2. Rebuild and repeat fresh-installation and post-update verification if configuration or audit requirements change. Recorded verification covers only the inputs and checks identified by its reports.
 
-Windows Update verification is separate from image building and follows the completed configuration and deployment profile.
+Windows Update verification runs on the installed guest separately from image building. The recorded verification cycle is complete; future configuration changes require a new cycle.
