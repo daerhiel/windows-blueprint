@@ -17,6 +17,8 @@ param(
     [string] $ToolchainLockPath = (Join-Path $PSScriptRoot '..\config\toolchain.lock.json')
 )
 
+. (Join-Path $PSScriptRoot 'workflow-output.ps1')
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -32,7 +34,7 @@ if ([IO.Path]::GetDirectoryName($outputFullPath) -ine $catalogRoot) {
     throw 'OutputDirectory must be directly under the repository .local/catalog directory.'
 }
 foreach ($inputPath in @($isoFullPath, (Resolve-Path -LiteralPath $SourceLockPath).ProviderPath, (Resolve-Path -LiteralPath $ToolchainLockPath).ProviderPath)) {
-    if ($inputPath.StartsWith($outputFullPath + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Source files must be outside the output directory.' }
+    if ($inputPath -ieq $outputFullPath -or $inputPath -ieq ($outputFullPath + '.lock') -or $inputPath.StartsWith($outputFullPath + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Source files must be outside the output directory and its lock file.' }
 }
 foreach ($checkedPath in @((Split-Path $catalogRoot -Parent), $catalogRoot, $outputFullPath, ($outputFullPath + '.lock'))) {
     if ((Test-Path -LiteralPath $checkedPath) -and ((Get-Item -LiteralPath $checkedPath -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
@@ -69,6 +71,7 @@ function Set-OperationStage {
     param([string] $Name)
     $operation.stage = $Name
     Save-Operation
+    Write-WorkflowMessage ('Source: ' + $Name)
 }
 
 function Add-SelectionMap {
@@ -97,6 +100,7 @@ try {
         $directoryLock = [IO.FileStream]::new(($outputFullPath + '.lock'), [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None, 4096, [IO.FileOptions]::DeleteOnClose)
     }
     catch { throw 'Another export is using this output directory.' }
+    Write-WorkflowMessage 'Source: verifying the ISO fingerprint and pinned ADK files:' -Data $isoFullPath
     if ((Get-FileHash -LiteralPath $isoFullPath -Algorithm SHA256).Hash -ne $sourceLock.iso.sha256) {
         throw 'The ISO fingerprint does not match the source lock.'
     }
@@ -141,6 +145,7 @@ public static class CatalogNativeLoader {
         $resolvedOutputPath = (Resolve-Path -LiteralPath $outputFullPath).ProviderPath
         if ([IO.Path]::GetDirectoryName($resolvedOutputPath) -ine $catalogRoot) { throw 'Unsafe catalog cleanup path.' }
         if (@(Get-ChildItem -LiteralPath $resolvedOutputPath -Force -Recurse | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint }).Count -gt 0) { throw 'Catalog contents must not contain reparse points.' }
+        Write-WorkflowMessage 'Source: replacing the guarded working directory:' -Data $resolvedOutputPath -Level Warning
         Remove-Item -LiteralPath $resolvedOutputPath -Recurse -Force
     }
     $outputDrive = [IO.DriveInfo]::new([IO.Path]::GetPathRoot($outputFullPath))
@@ -241,9 +246,11 @@ public static class CatalogNativeLoader {
 catch {
     $operation.status = 'Failed'
     $operation.error = $_.Exception.Message
+    Write-WorkflowMessage 'Source export failed:' -Data $operation.error -Level Error
 }
 finally {
     if ($createdWimMount) {
+        Write-WorkflowMessage 'Source: unmounting the read-only working WIM.'
         try {
             Dismount-WindowsImage -Path $mountPath -Discard -LogPath $dismLogPath -ScratchDirectory $scratchPath | Out-Null
             $operation.unmountedImage = $true
@@ -251,6 +258,7 @@ finally {
         catch { $operation.cleanupErrors += $_.Exception.Message }
     }
     if ($createdIsoAttachment) {
+        Write-WorkflowMessage 'Source: detaching the ISO attachment created by this export.'
         try {
             Dismount-DiskImage -ImagePath $isoFullPath | Out-Null
             $operation.detachedIso = $true
@@ -266,3 +274,4 @@ if ($operation.status -ne 'Succeeded') {
     Write-Error ((@($operation.error) + @($operation.cleanupErrors)) -join [Environment]::NewLine) -ErrorAction Continue
     exit 1
 }
+Write-WorkflowMessage 'Source artifacts exported and cleanup completed:' -Data $outputFullPath -Level Success

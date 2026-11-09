@@ -12,8 +12,10 @@ and removes the staging tree after verification.
 param(
     [Parameter(Mandatory = $true)] [string] $IsoPath,
     [switch] $Compress,
-    [string] $OutputDirectory = (Join-Path $PSScriptRoot '..\.local\media\windows11-pro')
+    [string] $OutputDirectory
 )
+. (Join-Path $PSScriptRoot 'workflow-output.ps1')
+if (-not $PSBoundParameters.ContainsKey('OutputDirectory')) { $OutputDirectory = Join-Path $PSScriptRoot '..\.local\media\windows11-pro' }
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -55,7 +57,7 @@ function Write-MediaStage {
     param([string] $Name)
     $operation.stage = $Name
     Save-MediaOperation
-    Write-Output $Name
+    Write-WorkflowMessage ('Media: ' + $Name)
 }
 function Get-MediaVolumeRoot {
     param($DiskImage)
@@ -66,10 +68,9 @@ function Get-MediaVolumeRoot {
 function Get-MediaImageInfo {
     param([string] $ImagePath)
     $arguments = @('/Get-ImageInfo', ('/ImageFile:' + $ImagePath), '/English', ('/LogPath:' + $dismLog), ('/ScratchDir:' + $scratch))
-    $listing = @(& $dismExe @arguments)
-    if ($LASTEXITCODE -ne 0 -or @($listing | Where-Object { $_ -match '^\s*Index\s*:' }).Count -ne 1) { throw 'Expected one readable installation image.' }
-    $details = @(& $dismExe @arguments /Index:1)
-    if ($LASTEXITCODE -ne 0) { throw 'Cannot read installation image metadata.' }
+    $listing = @(Invoke-WorkflowNativeCommand -FilePath $dismExe -Arguments $arguments -LogPath $nativeLog)
+    if (@($listing | Where-Object { $_ -match '^\s*Index\s*:' }).Count -ne 1) { throw 'Expected one readable installation image.' }
+    $details = @(Invoke-WorkflowNativeCommand -FilePath $dismExe -Arguments ($arguments + '/Index:1') -LogPath $nativeLog)
     $fields = @{}
     foreach ($line in $details) {
         $fieldMatch = [regex]::Match($line, '^\s*([^:]+?)\s*:\s*(.*?)\s*$')
@@ -132,6 +133,7 @@ try {
     $scratch = Join-Path $output 'scratch'
     [IO.Directory]::CreateDirectory($scratch) | Out-Null
     $dismLog = Join-Path $output 'dism.log'
+    $nativeLog = Join-Path $output 'native-commands.log'
     Write-MediaStage 'Attach original Microsoft ISO read-only'
     $sourceDisk = Get-DiskImage -ImagePath $sourceIso
     if (-not $sourceDisk.Attached) { $sourceDisk = Mount-DiskImage -ImagePath $sourceIso -StorageType ISO -Access ReadOnly -PassThru; $sourceAttached = $true }
@@ -150,15 +152,12 @@ try {
     $originalBoot = Join-Path $tree 'sources\boot.wim'
     $bootInfo = Get-WindowsImage -ImagePath $originalBoot -Index 2
     if (([version]$bootInfo.Version).Build -ne $toolchain.winpe.imageBuild) { throw 'WinPE optional components must match the Setup image build.' }
-    & $dismExe /Export-Image ('/SourceImageFile:' + $originalBoot) /SourceIndex:2 ('/DestinationImageFile:' + $bootWim) /Compress:max /Bootable /CheckIntegrity /English ('/LogPath:' + $dismLog) ('/ScratchDir:' + $scratch) | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'Setup boot image export failed.' }
+    Invoke-WorkflowNativeCommand -FilePath $dismExe -Arguments @('/Export-Image', ('/SourceImageFile:' + $originalBoot), '/SourceIndex:2', ('/DestinationImageFile:' + $bootWim), '/Compress:max', '/Bootable', '/CheckIntegrity', '/English', ('/LogPath:' + $dismLog), ('/ScratchDir:' + $scratch)) -LogPath $nativeLog | Out-Null
     [IO.Directory]::CreateDirectory($bootMount) | Out-Null
-    & $dismExe /Mount-Image ('/ImageFile:' + $bootWim) /Index:1 ('/MountDir:' + $bootMount) /CheckIntegrity /English ('/LogPath:' + $dismLog) ('/ScratchDir:' + $scratch) | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'Setup boot image mount failed.' }
+    Invoke-WorkflowNativeCommand -FilePath $dismExe -Arguments @('/Mount-Image', ('/ImageFile:' + $bootWim), '/Index:1', ('/MountDir:' + $bootMount), '/CheckIntegrity', '/English', ('/LogPath:' + $dismLog), ('/ScratchDir:' + $scratch)) -LogPath $nativeLog | Out-Null
     $bootMounted = $true
     foreach ($package in $toolchain.winpe.packages) {
-        & $dismExe /Image:$bootMount /Add-Package ('/PackagePath:' + (Join-Path $packageRoot $package.path)) /English ('/LogPath:' + $dismLog) ('/ScratchDir:' + $scratch) | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw ('WinPE package installation failed: ' + $package.path) }
+        Invoke-WorkflowNativeCommand -FilePath $dismExe -Arguments @(('/Image:' + $bootMount), '/Add-Package', ('/PackagePath:' + (Join-Path $packageRoot $package.path)), '/English', ('/LogPath:' + $dismLog), ('/ScratchDir:' + $scratch)) -LogPath $nativeLog | Out-Null
     }
     $startup = @'
 $ErrorActionPreference = 'Stop'
@@ -185,17 +184,14 @@ catch {
     if (-not (Test-Path -LiteralPath (Join-Path $system32 'WindowsPowerShell\v1.0\powershell.exe'))) { throw 'WinPE PowerShell is missing.' }
     $startupHashes = @{}
     foreach ($name in @('winpeshl.ini', 'start-deployment.ps1')) { $startupHashes[$name] = (Get-FileHash -LiteralPath (Join-Path $system32 $name)).Hash }
-    & $dismExe /Unmount-Image ('/MountDir:' + $bootMount) /Commit /CheckIntegrity /English ('/LogPath:' + $dismLog) ('/ScratchDir:' + $scratch) | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'Saving the Setup boot image failed.' }
+    Invoke-WorkflowNativeCommand -FilePath $dismExe -Arguments @('/Unmount-Image', ('/MountDir:' + $bootMount), '/Commit', '/CheckIntegrity', '/English', ('/LogPath:' + $dismLog), ('/ScratchDir:' + $scratch)) -LogPath $nativeLog | Out-Null
     $bootMounted = $false
-    & $dismExe /Mount-Image ('/ImageFile:' + $bootWim) /Index:1 ('/MountDir:' + $bootMount) /ReadOnly /CheckIntegrity /English ('/LogPath:' + $dismLog) ('/ScratchDir:' + $scratch) | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'Reopening the saved Setup image failed.' }
+    Invoke-WorkflowNativeCommand -FilePath $dismExe -Arguments @('/Mount-Image', ('/ImageFile:' + $bootWim), '/Index:1', ('/MountDir:' + $bootMount), '/ReadOnly', '/CheckIntegrity', '/English', ('/LogPath:' + $dismLog), ('/ScratchDir:' + $scratch)) -LogPath $nativeLog | Out-Null
     $bootMounted = $true
     foreach ($name in $startupHashes.Keys) {
         if ((Get-FileHash -LiteralPath (Join-Path $system32 $name)).Hash -cne $startupHashes[$name]) { throw ('Saved Setup startup file differs: ' + $name) }
     }
-    & $dismExe /Unmount-Image ('/MountDir:' + $bootMount) /Discard /English ('/LogPath:' + $dismLog) | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'Closing the verified Setup image failed.' }
+    Invoke-WorkflowNativeCommand -FilePath $dismExe -Arguments @('/Unmount-Image', ('/MountDir:' + $bootMount), '/Discard', '/English', ('/LogPath:' + $dismLog)) -LogPath $nativeLog | Out-Null
     $bootMounted = $false
     Copy-Item -LiteralPath $bootWim -Destination $originalBoot -Force
     $manifest = @($manifest | Where-Object { $_.path -ine 'sources\boot.wim' })
@@ -217,8 +213,8 @@ catch {
     $payloadPath = Join-Path $tree ('sources\' + $payloadName)
     if ($Compress) {
         Write-MediaStage 'Export the configured WIM to recovery-compressed ESD'
-        & $dismExe /Export-Image ('/SourceImageFile:' + $wimPath) /SourceIndex:1 ('/DestinationImageFile:' + $payloadPath) /Compress:recovery /CheckIntegrity /English ('/LogPath:' + $dismLog) ('/ScratchDir:' + $scratch) | Out-Null
-        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $payloadPath -PathType Leaf)) { throw 'Recovery-compressed ESD export failed.' }
+        Invoke-WorkflowNativeCommand -FilePath $dismExe -Arguments @('/Export-Image', ('/SourceImageFile:' + $wimPath), '/SourceIndex:1', ('/DestinationImageFile:' + $payloadPath), '/Compress:recovery', '/CheckIntegrity', '/English', ('/LogPath:' + $dismLog), ('/ScratchDir:' + $scratch)) -LogPath $nativeLog | Out-Null
+        if (-not (Test-Path -LiteralPath $payloadPath -PathType Leaf)) { throw 'Recovery-compressed ESD export failed.' }
         Write-MediaStage 'Verify the compressed image metadata'
         $outputMetadata = Get-MediaImageInfo -ImagePath $payloadPath
         if (($inputMetadata | ConvertTo-Json -Compress) -cne ($outputMetadata | ConvertTo-Json -Compress)) { throw 'Compressed image metadata differs from the verified WIM.' }
@@ -248,8 +244,8 @@ catch {
     # Relative boot paths avoid spaces in Oscdimg's multi-boot option.
     Push-Location -LiteralPath $tree
     try {
-        & $oscdimg.path -m -o -h -u2 -udfver102 -lWIN11PRO '-yo..\boot-order.txt' '-bootdata:2#p0,e,bboot\etfsboot.com#pEF,e,befi\microsoft\boot\efisys.bin' $tree $iso | Out-Null
-        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $iso)) { throw 'Oscdimg failed to create installation media.' }
+        Invoke-WorkflowNativeCommand -FilePath $oscdimg.path -Arguments @('-m', '-o', '-h', '-u2', '-udfver102', '-lWIN11PRO', '-yo..\boot-order.txt', '-bootdata:2#p0,e,bboot\etfsboot.com#pEF,e,befi\microsoft\boot\efisys.bin', $tree, $iso) -LogPath $nativeLog | Out-Null
+        if (-not (Test-Path -LiteralPath $iso)) { throw 'Oscdimg failed to create installation media.' }
     }
     finally { Pop-Location }
     Write-MediaStage 'Verify every file in the packaged ISO'
@@ -272,19 +268,27 @@ catch {
     $operation.stage = 'Complete'
     $operation.status = 'Succeeded'
 }
-catch { $operation.status = 'Failed'; $operation.error = $_.Exception.Message; if ($prepared) { Save-MediaOperation } }
+catch {
+    $operation.status = 'Failed'
+    $operation['errorDetails'] = Get-WorkflowErrorDetails -Failure $_
+    $operation.error = $operation.errorDetails.message
+    Write-WorkflowMessage 'Media packaging failed:' -Data $operation.error -Level Error
+    if ($prepared) { Save-MediaOperation }
+}
 finally {
     if ($bootMounted) {
+        Write-WorkflowMessage 'Discarding the remaining Setup boot-image mount during cleanup.' -Level Warning
         try {
-            & $dismExe /Unmount-Image ('/MountDir:' + $bootMount) /Discard /English ('/LogPath:' + $dismLog) | Out-Null
-            if ($LASTEXITCODE -ne 0) { throw 'Setup boot image cleanup failed.' }
+            Invoke-WorkflowNativeCommand -FilePath $dismExe -Arguments @('/Unmount-Image', ('/MountDir:' + $bootMount), '/Discard', '/English', ('/LogPath:' + $dismLog)) -LogPath $nativeLog | Out-Null
         }
         catch { $operation.cleanupErrors += $_.Exception.Message }
     }
     if ($targetAttached) {
+        Write-WorkflowMessage 'Detaching the generated ISO during media cleanup.'
         try { Dismount-DiskImage -ImagePath $iso | Out-Null } catch { $operation.cleanupErrors += $_.Exception.Message }
     }
     if ($sourceAttached) {
+        Write-WorkflowMessage 'Detaching the source ISO during media cleanup.'
         try { Dismount-DiskImage -ImagePath $sourceIso | Out-Null } catch { $operation.cleanupErrors += $_.Exception.Message }
     }
     if ($operation.cleanupErrors.Count -gt 0) { $operation.status = 'Failed' }
@@ -296,4 +300,4 @@ finally {
     }
 }
 if ($operation.status -cne 'Succeeded') { throw ((@($operation.error) + @($operation.cleanupErrors)) -join [Environment]::NewLine) }
-Write-Output ('Verified installation media: ' + $iso + '; image index 1; automatic disk preparation and native OOBE.')
+Write-WorkflowMessage 'Verified installation media with automatic disk preparation and native OOBE:' -Data $iso -Level Success

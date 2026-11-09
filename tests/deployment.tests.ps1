@@ -29,8 +29,8 @@ Assert-Deployment ($null -eq (Get-DeploymentDisk @((New-FixtureDisk 0 1), (New-F
 Assert-Deployment ($null -eq (Get-DeploymentDisk @((New-FixtureDisk 2 0), (New-FixtureDisk 4 0)))) 'Missing disk 0 must fall back to Windows Setup.'
 foreach ($disks in @(
     @{ Items = @() },
-    @{ Items = @((New-FixtureDisk 0 0 $true)) },
-    @{ Items = @((New-FixtureDisk 0 0 $false $true)) },
+    @{ Items = @((New-FixtureDisk -Number 0 -Partitions 0 -ReadOnly $true)) },
+    @{ Items = @((New-FixtureDisk -Number 0 -Partitions 0 -ReadOnly $false -Offline $true)) },
     @{ Items = @((New-FixtureDisk 0 $null), (New-FixtureDisk 1 0)) }
 )) {
     $caught = $false

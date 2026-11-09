@@ -1,6 +1,6 @@
 # Stage 3. Policies in the prepared image
 
-Status: the expanded Pro privacy profile and deployment flow are verified through a fresh installation from the Fast-WIM development ISO. Independent audits matched the selected components, local GPO definitions and processing metadata, installed registry values, and deployment requirements. Stable pre-update inventories matched, and `configured-audited` is preserved. Audits after Windows Update and a further restart passed the configured checks, with no remaining reboot indicators or policy drift. A paused deployment of a selected removed app remains visible in inventory and requires review; absence checks assess provisioning and installed registrations.
+Status: the expanded Pro privacy profile and deployment flow are verified through a fresh installation from the Fast-WIM development ISO. Independent audits matched the selected components, local GPO definitions and processing metadata, installed registry values, and deployment requirements. Stable pre-update inventories matched, and `configured-audited` is preserved. Audits after Windows Update and a further restart passed the configured checks, with no remaining reboot indicators or policy drift. The observed paused deployment was traced to a separate system-initiated app acquisition request. Source-image removal does not block later online acquisition; the accepted absence checks still assess provisioning and installed registrations.
 
 Subsequent configuration changes require an image rebuild and a fresh installation before they are covered by this verification. Policy delivery, registry state, and selected app absence are part of the existing audit; changed OOBE behavior also requires fresh-installation verification. Generated reports record the exact configuration tested.
 
@@ -10,7 +10,7 @@ The `Policies` map in [windows.psd1](../config/windows.psd1) is an input to the 
 
 The installed system receives ordinary local GPO files as part of Windows. Windows processes computer policy at startup and user policy at sign-in. There is no separate policy-installation step, runtime LGPO executable, repository copy, first-logon setup script, or VM-specific configuration mechanism in the image. Changing a selected policy requires rebuilding the image from the pinned inputs.
 
-LGPO is a build-host dependency only. Its download URL, archive/executable fingerprints, and version are pinned in [toolchain.lock.json](../config/toolchain.lock.json); the downloaded files remain under ignored `.local/tools`. Build commands are in [build-plan step 22](build-plan.md).
+LGPO is a build-host dependency only. Its download URL, archive/executable fingerprints, and version are pinned in [toolchain.lock.json](../config/toolchain.lock.json); the downloaded files remain under ignored `.local/tools`. Build commands use the [build workflow](../workflows/README.md#build) in the [build plan](build-plan.md).
 
 ## Policy selection
 
@@ -26,7 +26,7 @@ The configured VM installs directly from the deployment ISO, with automatic disk
 
 ## Remaining sequence
 
-1. Review the paused app-deployment evidence and the intended scope of app-absence checks before physical deployment.
+1. Review and implement the recurring operational scenarios proposed in the [automation review](automation-review.md) before final media preparation.
 2. Rebuild and repeat fresh-installation and post-update verification if configuration or audit requirements change.
 
 Windows Update verification is separate from image building and follows the completed configuration and deployment profile.

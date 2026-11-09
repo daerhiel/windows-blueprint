@@ -46,11 +46,23 @@ Microsoft documents the platform and runtime prerequisites in [Prepare Windows o
 
 The complete [catalog](catalogs/pro-26300.9711/catalog.json) and [commented selection template](catalogs/pro-26300.9711/selections.psd1) are generated from the pinned source image. The catalog records image metadata and available identifiers; [windows.psd1](windows.psd1) selects the desired state.
 
-[`export-image-catalog.ps1`](../scripts/export-image-catalog.ps1) captures the Optional Features, Windows Capabilities, and provisioned Appx exposed by the selected image, their source states, and image identity. The catalog describes what Windows reports; it does not guarantee that every payload is contained in the ISO or that every item can safely be removed. The provisioned app list is not a complete dependency graph or a list of every system app.
+The [source-preparation workflow](../workflows/prepare-source.ps1) runs the catalog exporter to capture the Optional Features, Windows Capabilities, and provisioned Appx exposed by the selected image, their source states, and image identity. It keeps the source `pro.wim`, catalog, and commented selection template together under `.local/catalog`; Windows SIM uses that WIM during VM preparation. The catalog describes what Windows reports; it does not guarantee that every payload is contained in the ISO or that every item can safely be removed. The provisioned app list is not a complete dependency graph or a list of every system app.
 
 The exporter also generates an editable selection template with every discovered identifier commented out, grouped by the actions above. The template is a proposal, not a second active configuration. Copy selected entries into `windows.psd1`, preserving existing choices when refreshing a catalog. Framework packages and app dependencies must be identified before selecting removals.
 
 The source ISO hash, image index, edition, build, architecture, and language are recorded alongside the catalog. Validate active selections against that catalog; do not silently substitute or ignore unavailable identifiers.
+
+Source preparation never replaces the reviewed catalog in Git or the active profile. When deliberately refreshing tracked catalog files, review the generated artifacts and preserve any existing template edits before copying them. Resolve their locations from the successful workflow result:
+
+```powershell
+$preparedSource = Get-Content -LiteralPath '.local/workflows/prepare-source/operation.json' -Raw | ConvertFrom-Json
+if ($preparedSource.status -ne 'Succeeded') { throw 'Source preparation must succeed before catalog review.' }
+$catalogTarget = Join-Path 'config/catalogs' (Split-Path $preparedSource.outputDirectory -Leaf)
+New-Item -ItemType Directory -Path $catalogTarget -Force | Out-Null
+Copy-Item -LiteralPath $preparedSource.catalogPath, $preparedSource.selectionsPath -Destination $catalogTarget
+```
+
+An existing desired profile can be used as-is after rebuilding local source artifacts from the same locked ISO. Catalog refresh is a separate review action, not a prerequisite for using a ready `windows.psd1`.
 
 Official inventory interfaces:
 

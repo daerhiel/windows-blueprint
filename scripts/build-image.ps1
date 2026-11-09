@@ -11,9 +11,11 @@ Dot-sourcing defines validation functions without performing a build.
 [CmdletBinding()]
 param(
     [string] $IsoPath,
-    [string] $OutputDirectory = (Join-Path $PSScriptRoot '..\.local\build\windows11-pro'),
-    [string] $ConfigPath = (Join-Path $PSScriptRoot '..\config\windows.psd1')
+    [string] $OutputDirectory,
+    [string] $ConfigPath
 )
+
+. (Join-Path $PSScriptRoot 'workflow-output.ps1')
 
 function Get-ImageBuildPlan {
     param([hashtable] $Config, $Inventory, [object[]] $Manifests)
@@ -90,8 +92,7 @@ function Write-ImageLocalGpo {
         $inputFile = Join-Path $SourceDirectory ($scope + '.txt')
         [IO.File]::WriteAllText($inputFile, $text, [Text.UnicodeEncoding]::new($false, $true))
         # /r and /w only compile a file; no policy is imported into the build host.
-        & $LgpoPath /r $inputFile /w (Join-Path $directory 'Registry.pol') | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw ('LGPO compilation failed: ' + $scope) }
+        Invoke-WorkflowNativeCommand -FilePath $LgpoPath -Arguments @('/r', $inputFile, '/w', (Join-Path $directory 'Registry.pol')) -LogPath (Join-Path $SourceDirectory ($scope + '.log')) | Out-Null
         $toolGuid = 'D02B1F72-3407-48AE-BA88-E8213C6761F1'
         if ($scope -eq 'Machine') { $version = $version -bor 1 }
         else { $version = $version -bor 65536; $toolGuid = 'D02B1F73-3407-48AE-BA88-E8213C6761F1' }
@@ -144,6 +145,8 @@ function Get-ImageBuildVerification {
 }
 
 if ($MyInvocation.InvocationName -eq '.') { return }
+if (-not $PSBoundParameters.ContainsKey('OutputDirectory')) { $OutputDirectory = Join-Path $PSScriptRoot '..\.local\build\windows11-pro' }
+if (-not $PSBoundParameters.ContainsKey('ConfigPath')) { $ConfigPath = Join-Path $PSScriptRoot '..\config\windows.psd1' }
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -193,7 +196,7 @@ function Write-BuildStage {
     param([string] $Name)
     $operation.stage = $Name
     Save-BuildOperation
-    Write-Output $Name
+    Write-WorkflowMessage ('Image: ' + $Name)
 }
 function Get-BuildInventory {
     @{
@@ -350,15 +353,19 @@ public static class BuildNativeLoader {
 }
 catch {
     $operation.status = 'Failed'
-    $operation.error = $_.Exception.Message
+    $operation['errorDetails'] = Get-WorkflowErrorDetails -Failure $_
+    $operation.error = $operation.errorDetails.message
+    Write-WorkflowMessage 'Image build failed:' -Data $operation.error -Level Error
     if ($prepared) { Save-BuildOperation }
 }
 finally {
     if ($mounted) {
+        Write-WorkflowMessage 'Discarding the remaining working WIM mount during cleanup.' -Level Warning
         try { Dismount-WindowsImage -Path $mount -Discard @dism | Out-Null }
         catch { $operation.cleanupErrors += $_.Exception.Message }
     }
     if ($attached) {
+        Write-WorkflowMessage 'Detaching the source ISO during image-build cleanup.'
         try { Dismount-DiskImage -ImagePath $iso | Out-Null }
         catch { $operation.cleanupErrors += $_.Exception.Message }
     }
@@ -368,4 +375,4 @@ finally {
     finally { if ($null -ne $lock) { $lock.Dispose() } }
 }
 if ($operation.status -ne 'Succeeded') { throw ((@($operation.error) + @($operation.cleanupErrors)) -join [Environment]::NewLine) }
-Write-Output ('Configured WIM ready: ' + $wim + ' (index 1). Installation and independent audit are still required.')
+Write-WorkflowMessage 'Configured WIM ready for installation and independent audit:' -Data $wim -Level Success

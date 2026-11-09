@@ -27,20 +27,22 @@ The source image must match the deployment architecture selected in [windows.psd
 
 The [deployment flow](docs/requirements.md#deployment-flow) adds automatic disk sizing through Windows Setup and local-user creation through native OOBE. Development media use the Fast-compressed WIM. A fresh installation passed matching independent audits of the selected components, expanded privacy policies, and deployment profile; the pre-update `configured-audited` checkpoint is preserved. Post-update audits passed the configured checks, including after a further restart, with no remaining reboot indicators.
 
-The current [windows.psd1](config/windows.psd1) passed fresh-installation and post-update audits, including verification of referenced policy files. Generated reports identify the exact configuration verified. A paused deployment of a selected removed app remains visible in the post-update inventory and requires review; the audit's absence checks assess provisioning and installed registrations.
+The current [windows.psd1](config/windows.psd1) passed fresh-installation and post-update audits, including verification of referenced policy files. Generated reports identify the exact configuration verified. The observed paused deployment of a selected removed app was traced to a separate system-initiated acquisition request. Removing source-image provisioning does not block later online acquisition; the audit's absence checks continue to assess provisioning and installed registrations.
 
 [Requirements](docs/requirements.md) records accepted decisions and open questions.
 The [configuration guide](config/README.md) describes the initial profile and the captured component selection catalog.
 
 The [component selection template](config/catalogs/pro-26300.9711/selections.psd1) contains the full exported component list for the selected image.
 
-[Preparation scripts](scripts/README.md) describes source inspection and how to run the required elevated helper.
+[Supporting scripts](scripts/README.md) describes initial source inspection, worker implementations, and the optional elevation launcher.
+
+[Operator workflows](workflows/README.md) provides the tool-preparation, source-preparation, build, and test-VM entry points and the standalone saved-audit comparison utility. Source preparation keeps the original WIM, component catalog, and commented selection template together, including when starting with an empty `.local`. The [operational automation map](docs/automation-review.md) records their composition and cleanup boundaries.
 
 [Installed-system audit](docs/audit.md) describes collection scope, configuration checks, JSON/Markdown reports, exit codes, and the Stage 2 VM verification sequence.
 
 The [build plan](docs/build-plan.md) provides sequential preparation, build, and VM verification instructions. The supplied ISO fingerprint and selected Pro image are pinned in [`config/source-image.lock.json`](config/source-image.lock.json); independent source verification is still pending.
 
-After capturing the clean Pro baseline, [build a separate configured WIM](scripts/README.md#build-the-configured-image), perform a fresh VM installation, and verify it with the independent audit before and after updates. Deployment to a physical computer follows verification of this cycle.
+[Build a separate configured WIM and installation ISO](workflows/README.md#build), perform a fresh VM installation, and verify it with the independent audit before and after updates. Deployment to a physical computer follows verification of this cycle.
 
 ## Documentation and agent instructions
 

@@ -18,6 +18,8 @@
 
 ## Project context
 
+- Keep temporary scripts for local operational tasks under `.local/ops/`; do not add them to the maintained repository scripts.
+
 - Keep selected applications, components, policies, resource limits, and other configuration values in configuration and lock files. Markdown explains their purpose and usage and links to those files; do not duplicate selection lists, numeric settings, catalog counts, or report statistics.
 
 - Maintain `docs/build-plan.md` as a short numbered sequence of reproducible build instructions. Describe each step by its goal and include the required commands or script invocations. Do not record execution status, statistics, run results, or development history. Keep selected values and input metadata in configuration and lock files, and execution results in generated reports. Never put secrets or full machine inventories in the plan.

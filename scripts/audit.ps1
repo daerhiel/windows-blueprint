@@ -3,7 +3,7 @@
 .SYNOPSIS
 Inventories installed Windows and checks explicitly configured requirements.
 .DESCRIPTION
-Run in a fresh 64-bit Windows PowerShell 5.1 process. Administrator privileges
+Run in a fresh 64-bit PowerShell Windows process. Administrator privileges
 are recommended, but unavailable areas are reported instead of silently skipped.
 Writes only its own reports under .local/audit. Does not install dependencies,
 download content, or change Windows configuration. Dot-sourcing defines functions
