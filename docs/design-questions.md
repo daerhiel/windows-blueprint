@@ -6,9 +6,9 @@ This record preserves unresolved parts of the original installation and maintena
 
 ## Source and interpretation
 
-The source is the initial Russian-language conversation stored as `docs/context.md`, Git blob `4d7d7806affda894abdc925865ea7f0b11bd515a`, recorded in commit `ebec3989e071cfd3bf2a920a3a706a467860f418`. Source locations below refer to lines in that blob, so the provenance remains recoverable from Git if the working-tree archive is removed. The descriptions here are English summaries, not verbatim quotations.
+These entries summarize the initial Russian-language installation and maintenance discussion in English rather than quoting it verbatim. They preserve the intent and qualifications needed to assess the open questions without requiring the original conversation.
 
-The user's initial goal was a transparent clean installation from an official Windows image, with known changes and an understanding of which unwanted components could return after updates. The later clarification asked for a reproducible installation path, automated through scripts and policy/settings files, with image composition maintained consistently over time. Configuration should remain recoverable from versioned rules when the source Windows version changes. These goals come from the opening request, the clarification at line 190, and the closing synthesis at line 339.
+The user's initial goal was a transparent clean installation from an official Windows image, with known changes and an understanding of which unwanted components could return after updates. The later clarification asked for a reproducible installation path, automated through scripts and policy/settings files, with image composition maintained consistently over time. Configuration should remain recoverable from versioned rules when the source Windows version changes. These goals came from the opening request and later clarifications.
 
 The assistant proposed several possible mechanisms, including a separate configuration operation, drift reconciliation, edition-specific policies, and offline update integration. Those proposals were not all explicit user requirements. Recording an absent mechanism here does not establish that it must be built or that it is supported for the selected Windows profile.
 
@@ -16,7 +16,7 @@ The source also contains product-release, policy-availability, licensing, and in
 
 ## Applying configuration to an existing installation
 
-**Source intent.** The discussion separated image creation, configuration application, and audit. It proposed an idempotent configuration operation that could be run repeatedly, checking actual state before applying changes. The installation-hook discussion was intended to avoid making configuration depend exclusively on a particular first-boot hook. Source locations: lines 190–196, 285–305, and 317–339.
+**Source intent.** The discussion separated image creation, configuration application, and audit. It proposed an idempotent configuration operation that could be run repeatedly, checking actual state before applying changes. The installation-hook discussion was intended to avoid making configuration depend exclusively on a particular first-boot hook.
 
 **Current boundary.** The builder applies selected component changes offline and compiles local GPOs into the image. Windows subsequently processes those GPOs. There is no project operation that applies the entire desired configuration to an already installed OS. Changing the prepared profile currently leads to a rebuild and fresh installation; see [policy delivery](stage-03.md#delivery).
 
@@ -26,7 +26,7 @@ The source also contains product-release, policy-availability, licensing, and in
 
 ## Restoring desired state after drift
 
-**Source intent.** The proposed lifecycle included reconciliation after audit: detect an unwanted change after an update and restore the declared state without disabling Windows servicing. Source locations: lines 174–184, 194–196, and 285–305.
+**Source intent.** The proposed lifecycle included reconciliation after audit: detect an unwanted change after an update and restore the declared state without disabling Windows servicing.
 
 **Current boundary.** The [audit](audit.md) reports mismatches and incomplete verification. The [comparison utility](../scripts/compare-audits.ps1) describes changes between saved reports. Neither repairs the installed system. VM reinstallation replaces a disposable test installation; it is not in-place reconciliation.
 
@@ -36,7 +36,7 @@ The source also contains product-release, policy-availability, licensing, and in
 
 ## Preventing unwanted applications from returning
 
-**Source intent.** The opening question concerned persistence across updates. The discussion explicitly distinguished removing an app from the installation image from preventing later acquisition, and suggested edition-dependent policy-based app removal as one possible mechanism. Source locations: lines 1, 9, and 43–102.
+**Source intent.** The opening question concerned persistence across updates. The discussion explicitly distinguished removing an app from the installation image from preventing later acquisition, and suggested edition-dependent policy-based app removal as one possible mechanism.
 
 **Current boundary.** The builder removes selected provisioned packages from the source image. The audit checks selected app families against provisioning and installed user registrations. It does not enforce an acquisition block or remove a returned app. [Stage 3](stage-03.md) records the distinction between source-image removal and later online acquisition.
 
@@ -46,7 +46,7 @@ The source also contains product-release, policy-availability, licensing, and in
 
 ## Declaring and managing Windows service state
 
-**Source intent.** The initial wording referred broadly to unwanted services. The discussion then distinguished apps, optional components, service startup configuration, and manual removal of services or CBS-owned files. It warned against treating those operations as interchangeable. Source locations: lines 1 and 110–136.
+**Source intent.** The initial wording referred broadly to unwanted services. The discussion then distinguished apps, optional components, service startup configuration, and manual removal of services or CBS-owned files. It warned against treating those operations as interchangeable.
 
 **Current boundary.** The audit inventories services and the comparator can report changes in startup configuration. There is no selected service-state configuration or service compliance/application operation. The accepted requirements exclude manual stripping of system services and CBS packages.
 
@@ -56,7 +56,7 @@ The source also contains product-release, policy-availability, licensing, and in
 
 ## Verifying the behavioral effect of policies
 
-**Source intent.** The discussion emphasized that a registry or policy-file entry does not prove that Windows honors it, and called for checking the actual result. Source locations: lines 190–200 and 315.
+**Source intent.** The discussion emphasized that a registry or policy-file entry does not prove that Windows honors it, and called for checking the actual result.
 
 **Current boundary.** The builder and audit check local GPO definitions, processing metadata, referenced policy files, and selected registry values. The policy collector retains `effectiveState = 'NotVerified'` for behavioral effects. Some deployment behavior is exercised through fresh Setup/OOBE verification, but there is no general behavioral check for every selected policy. See [verification limits](stage-03.md#verification).
 
@@ -66,7 +66,7 @@ The source also contains product-release, policy-availability, licensing, and in
 
 ## Checking policy applicability across Windows versions
 
-**Source intent.** The user specifically questioned whether a policy would be honored on the relevant Windows version. The discussion also distinguished edition support from merely writing a setting. Source locations: lines 144–162 and 190–229.
+**Source intent.** The user specifically questioned whether a policy would be honored on the relevant Windows version. The discussion also distinguished edition support from merely writing a setting.
 
 **Current boundary.** Rules record reviewed editions and reference documentation; the collector determines applicability from the installed edition. Source locks identify the build used for preparation, while installed-system auditing allows OS updates. There is no per-policy OS-version/build applicability decision in the audit. See [policy observations](audit.md#optional-policy-observations).
 
@@ -76,7 +76,7 @@ The source also contains product-release, policy-availability, licensing, and in
 
 ## Integrating Windows updates into a reproducible image build
 
-**Source intent.** The discussion proposed starting from a known original ISO and combining reviewed updates with configuration, rather than repeatedly patching an already modified working image. The purpose was a rebuild whose inputs remained understandable and reproducible. Source locations: lines 305–307 and 339.
+**Source intent.** The discussion proposed starting from a known original ISO and combining reviewed updates with configuration, rather than repeatedly patching an already modified working image. The purpose was a rebuild whose inputs remained understandable and reproducible.
 
 **Current boundary.** Source and toolchain inputs are locked, and each image build starts from the original source. There is no declared set of Windows cumulative-update inputs or stage that applies them to the installation image. Adding WinPE dependencies during media preparation is a separate operation. Normal installed-system Windows Update remains an operator action followed by audit.
 
@@ -86,7 +86,7 @@ The source also contains product-release, policy-availability, licensing, and in
 
 ## Verifying an upgrade to another Windows version
 
-**Source intent.** The discussion distinguished cumulative servicing from an OS version upgrade, identifying the latter as a separate challenge for retained components and settings. It also wanted the ability to replace the source Windows version and rebuild from versioned rules. Source locations: lines 43–59 and 337–339.
+**Source intent.** The discussion distinguished cumulative servicing from an OS version upgrade, identifying the latter as a separate challenge for retained components and settings. It also wanted the ability to replace the source Windows version and rebuild from versioned rules.
 
 **Current boundary.** The VM workflow supports audit and comparison after operator-installed updates and an explicit restart. It does not define a separate OS-version-upgrade verification procedure with its own input review, policy-support review, and acceptance boundary. Existing update observations apply to the inputs and transitions actually recorded, not every future release.
 
@@ -96,7 +96,7 @@ The source also contains product-release, policy-availability, licensing, and in
 
 ## Providing an end-to-end Enterprise profile
 
-**Source intent.** Pro was the available starting point. Enterprise was discussed as an option for specific capabilities, with edition choice and licensing raised separately. The closing recommendation was to choose it for an identified need, rather than for the edition name alone. Source locations: lines 190–229 and 337.
+**Source intent.** Pro was the available starting point. Enterprise was discussed as an option for specific capabilities, with edition choice and licensing raised separately. The closing recommendation was to choose it for an identified need, rather than for the edition name alone.
 
 **Current boundary.** The configuration reader recognizes edition labels and policy rules have edition applicability, but source preparation, image-build checks, and VM preparation currently target the selected Pro profile. There is no complete reviewed Enterprise source/configuration/build/VM verification flow.
 

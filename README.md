@@ -46,7 +46,3 @@ The [build plan](docs/build-plan.md) provides sequential preparation, build, and
 ## Documentation and agent instructions
 
 Maintain project documentation and code comments in English, as specified in [AGENTS.md](AGENTS.md).
-
-## Source material
-
-The [previous conversation](docs/context.md) is preserved in its original language as historical reference material. Verify product versions and technical claims before using them; this file is not a project specification.
