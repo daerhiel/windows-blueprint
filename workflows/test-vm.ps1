@@ -1175,6 +1175,107 @@ function Get-TestVMGuestInspection {
     }
 }
 
+function Write-TestVMAuditSummary {
+    <#
+    .SYNOPSIS
+    Displays a collected guest audit summary and unresolved findings.
+
+    .DESCRIPTION
+    Writes colored console messages from the verified, copied JSON report before collection-completeness checks can fail. Keeps report data off the success output stream and identifies the saved readable and detailed reports.
+
+    .PARAMETER Report
+    Parsed audit.json report with check counts, compliance checks, and collection areas.
+
+    .PARAMETER ReportName
+    Label identifying this audit, including separate labels for consecutive Capture audits.
+
+    .PARAMETER ReportPath
+    Host path to the copied audit.json report; audit.md is stored alongside it.
+
+    .OUTPUTS
+    None. Writes host messages through Write-WorkflowMessage.
+    #>
+
+    param(
+        [Parameter(Mandatory = $true)] $Report,
+        [Parameter(Mandatory = $true)] [string] $ReportName,
+        [Parameter(Mandatory = $true)] [string] $ReportPath
+    )
+
+    $summaryLevel = 'Success'
+
+    if ($Report.summary.nonCompliant -gt 0) {
+        $summaryLevel = 'Error'
+    }
+    elseif ($Report.summary.notVerified -gt 0 -or $Report.summary.incompleteAreas -gt 0) {
+        $summaryLevel = 'Warning'
+    }
+
+    Write-WorkflowMessage ($ReportName + ': audit summary') -Level $summaryLevel
+    $counters = @(
+        @{
+            key   = 'compliant'
+            label = 'Compliant checks:'
+            level = 'Success'
+        }
+        @{
+            key   = 'nonCompliant'
+            label = 'Noncompliant checks:'
+            level = 'Error'
+        }
+        @{
+            key   = 'notVerified'
+            label = 'Not verified checks:'
+            level = 'Warning'
+        }
+        @{
+            key   = 'notApplicable'
+            label = 'Not applicable checks:'
+            level = 'Step'
+        }
+        @{
+            key   = 'incompleteAreas'
+            label = 'Incomplete collection areas:'
+            level = 'Warning'
+        }
+    )
+
+    foreach ($counter in $counters) {
+        $key = $counter.key
+        $count = $Report.summary.$key
+        $level = 'Success'
+
+        if ($count -gt 0) {
+            $level = $counter.level
+        }
+
+        Write-WorkflowMessage $counter.label -Data ([string]$count) -Level $level
+    }
+
+    foreach ($check in $Report.checks) {
+        if ($check.status -in @('NonCompliant', 'NotVerified')) {
+            $level = 'Warning'
+
+            if ($check.status -eq 'NonCompliant') {
+                $level = 'Error'
+            }
+
+            Write-WorkflowMessage ('{0}/{1}: {2}' -f $check.area, $check.id, $check.reason) -Level $level
+        }
+    }
+
+    foreach ($property in $Report.areas.PSObject.Properties) {
+        $area = $property.Value
+
+        if ($area.status -in @('Failed', 'Partial')) {
+            Write-WorkflowMessage ('{0}: collection {1}. {2}' -f $property.Name, $area.status, ($area.errors -join '; ')) -Level Warning
+        }
+    }
+
+    Write-WorkflowMessage 'Readable audit report:' -Data ([IO.Path]::ChangeExtension($ReportPath, '.md'))
+    Write-WorkflowMessage 'Detailed audit report:' -Data $ReportPath
+}
+
 function Invoke-TestVMCollection {
     <#
     .SYNOPSIS
@@ -1448,6 +1549,8 @@ catch {
         if ($report.exitCode -ne $audit.exitCode) {
             throw 'Guest process exit code differs from its audit report.'
         }
+
+        Write-TestVMAuditSummary -Report $report -ReportName $ReportName -ReportPath (Join-Path $destination 'audit.json')
 
         if ($limited) {
             if ($report.context.isAdministrator -or ($report.exitCode -band 2) -ne 2 -or $report.summary.incompleteAreas -eq 0 -or $report.areas.RegisteredApps.status -cne 'Partial' -or $report.areas.RegisteredApps.scope -cne 'CurrentUser') {
