@@ -108,12 +108,12 @@ Assert-TestVMActionParameters @{ Action = 'Audit'; VMProfile = 'Configured'; Net
 $owned = Join-Path $fixture 'owned'
 [IO.Directory]::CreateDirectory($owned) | Out-Null
 $settings = @{ root = $fixture; directory = $owned; profile = 'Configured'; vm = @{ Name = 'Owned'; DiskBytes = 80GB } }
-$metadata = [pscustomobject]@{ vmId = 'owned'; name = 'Owned'; directory = $owned; profile = 'Configured'; vhdPath = Join-Path $owned 'system.vhdx'; settings = @{ DiskBytes = 80GB } }
+$metadata = [PSCustomObject]@{ vmId = 'owned'; name = 'Owned'; directory = $owned; profile = 'Configured'; vhdPath = Join-Path $owned 'system.vhdx'; settings = @{ DiskBytes = 80GB } }
 $diskMap = @{}
 function Get-VHD { param([string] $Path) if (-not $diskMap.ContainsKey($Path)) { throw ('Unknown fixture disk: ' + $Path) }; $diskMap[$Path] }
-$diskMap[$metadata.vhdPath] = [pscustomobject]@{ VhdType = 'Dynamic'; ParentPath = $null; Size = 80GB; Attached = $false }
+$diskMap[$metadata.vhdPath] = [PSCustomObject]@{ VhdType = 'Dynamic'; ParentPath = $null; Size = 80GB; Attached = $false }
 $child = Join-Path $owned 'child.avhdx'
-$diskMap[$child] = [pscustomobject]@{ VhdType = 'Differencing'; ParentPath = $metadata.vhdPath; Attached = $false }
+$diskMap[$child] = [PSCustomObject]@{ VhdType = 'Differencing'; ParentPath = $metadata.vhdPath; Attached = $false }
 Assert-VMWorkflow (@(Get-TestVMDiskChain -Settings $settings -Metadata $metadata -Path $child).Count -eq 2) 'Accept the owned checkpoint disk chain.'
 $diskMap[$child].ParentPath = Join-Path $fixture 'foreign.vhdx'
 Assert-VMWorkflowFailure { Get-TestVMDiskChain -Settings $settings -Metadata $metadata -Path $child } 'escapes'
@@ -124,14 +124,14 @@ $metadata.vhdPath = Join-Path $owned 'unrelated.vhdx'
 Assert-VMWorkflowFailure { Get-TestVMDiskChain -Settings $settings -Metadata $metadata -Path $metadata.vhdPath -AllowMissingDisks } 'not the owned'
 $metadata.vhdPath = Join-Path $owned 'system.vhdx'
 
-$vm = [pscustomobject]@{ Id = 'owned'; Name = 'Owned'; Generation = 2; State = 'Off' }
-$drives = @([pscustomobject]@{ Path = $metadata.vhdPath; ControllerType = 'SCSI'; ControllerNumber = 0; ControllerLocation = 0 })
-$snapshots = @([pscustomobject]@{ Id = 'checkpoint'; Name = 'saved' })
+$vm = [PSCustomObject]@{ Id = 'owned'; Name = 'Owned'; Generation = 2; State = 'Off' }
+$drives = @([PSCustomObject]@{ Path = $metadata.vhdPath; ControllerType = 'SCSI'; ControllerNumber = 0; ControllerLocation = 0 })
+$snapshots = @([PSCustomObject]@{ Id = 'checkpoint'; Name = 'saved' })
 $mutations = @()
 function Get-VM { param($Id) $vm }
 function Get-VMHardDiskDrive { param($VM, $VMSnapshot) $drives }
-function Get-VMFirmware { param($VM) [pscustomobject]@{ SecureBoot = 'On'; SecureBootTemplate = 'MicrosoftWindows' } }
-function Get-VMSecurity { param($VM) [pscustomobject]@{ TpmEnabled = $true } }
+function Get-VMFirmware { param($VM) [PSCustomObject]@{ SecureBoot = 'On'; SecureBootTemplate = 'MicrosoftWindows' } }
+function Get-VMSecurity { param($VM) [PSCustomObject]@{ TpmEnabled = $true } }
 function Get-VMNetworkAdapter { param($VM) @() }
 function Get-VMSnapshot { param($VM) $snapshots }
 function Remove-VMSnapshot { param($VMSnapshot, $Confirm) $script:mutations += 'checkpoint' }
@@ -147,8 +147,8 @@ Assert-VMWorkflowFailure { Get-TestVMOwnedMachine -Settings $settings -Metadata 
 $vm.Name = 'Owned'
 
 $restored = @()
-function Get-VMNetworkAdapter { param($VM) @([pscustomobject]@{ Id = 'one' }, [pscustomobject]@{ Id = 'two' }) }
-function Get-VMSwitch { param($Id) if ($Id -eq 'missing') { throw 'Missing switch' }; [pscustomobject]@{ Name = $Id } }
+function Get-VMNetworkAdapter { param($VM) @([PSCustomObject]@{ Id = 'one' }, [PSCustomObject]@{ Id = 'two' }) }
+function Get-VMSwitch { param($Id) if ($Id -eq 'missing') { throw 'Missing switch' }; [PSCustomObject]@{ Name = $Id } }
 function Connect-VMNetworkAdapter { param($VMNetworkAdapter, $SwitchName) $script:restored += $VMNetworkAdapter.Id }
 Assert-VMWorkflowFailure { Restore-TestVMNetwork -VM $vm -Connections @(@{ Id = 'one'; SwitchId = 'missing' }, @{ Id = 'two'; SwitchId = 'present' }) } 'restoration failed'
 Assert-VMWorkflow ($restored -contains 'two') 'One restoration failure must not skip the remaining adapters.'
@@ -172,7 +172,13 @@ $entryPath = Join-Path $entryRoot 'workflows\test-vm.ps1'
 $tokens = $null; $errors = $null
 $workflowAst = [Management.Automation.Language.Parser]::ParseFile((Join-Path $repository 'workflows\test-vm.ps1'), [ref]$tokens, [ref]$errors)
 $source = Get-Content -LiteralPath (Join-Path $repository 'workflows\test-vm.ps1') -Raw
-$offset = $source.IndexOf("if (`$MyInvocation.InvocationName -eq '.') { return }")
+$entryGuard = @($workflowAst.EndBlock.Statements | Where-Object {
+    $_ -is [Management.Automation.Language.IfStatementAst] -and $_.Clauses[0].Item1.Extent.Text -eq '$MyInvocation.InvocationName -eq ''.'''
+})
+if ($entryGuard.Count -ne 1) {
+    throw 'Expected one public entry-point guard.'
+}
+$offset = $entryGuard[0].Extent.StartOffset
 ('[CmdletBinding(SupportsShouldProcess = $true)]' + [Environment]::NewLine + $workflowAst.ParamBlock.Extent.Text.Substring($workflowAst.ParamBlock.Extent.Text.IndexOf('param(')) + [Environment]::NewLine + $source.Substring($offset)) | Set-Content -LiteralPath $entryPath -Encoding UTF8
 @'
 param([string] $IsoPath, [string] $VMProfile)
@@ -180,17 +186,17 @@ function Get-TestVMConfiguration { param($VMProfile) $entrySettings }
 '@ | Set-Content -LiteralPath (Join-Path $entryRoot 'scripts\new-test-vm.ps1') -Encoding UTF8
 Copy-Item -LiteralPath (Join-Path $repository 'scripts\compare-audits.ps1') -Destination (Join-Path $entryRoot 'scripts\compare-audits.ps1')
 $entrySettings = @{ root = $entryRoot; directory = Join-Path $entryRoot '.local\vm\owned'; profile = 'Configured'; vm = @{ Name = 'Owned'; DiskBytes = 80GB } }
-$entryMetadata = [pscustomobject]@{ vmId = 'owned'; name = 'Owned'; directory = $entrySettings.directory; profile = 'Configured'; vhdPath = Join-Path $entrySettings.directory 'system.vhdx'; settings = @{ DiskBytes = 80GB } }
+$entryMetadata = [PSCustomObject]@{ vmId = 'owned'; name = 'Owned'; directory = $entrySettings.directory; profile = 'Configured'; vhdPath = Join-Path $entrySettings.directory 'system.vhdx'; settings = @{ DiskBytes = 80GB } }
 $entryMetadata | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $entrySettings.directory 'vm.json') -Encoding UTF8
-$diskMap[$entryMetadata.vhdPath] = [pscustomobject]@{ VhdType = 'Dynamic'; ParentPath = $null; Size = 80GB; Attached = $false }
-$drives = @([pscustomobject]@{ Path = $entryMetadata.vhdPath; ControllerType = 'SCSI'; ControllerNumber = 0; ControllerLocation = 0 })
+$diskMap[$entryMetadata.vhdPath] = [PSCustomObject]@{ VhdType = 'Dynamic'; ParentPath = $null; Size = 80GB; Attached = $false }
+$drives = @([PSCustomObject]@{ Path = $entryMetadata.vhdPath; ControllerType = 'SCSI'; ControllerNumber = 0; ControllerLocation = 0 })
 $snapshots = @()
 $vm.State = 'Running'
 $credential = [pscredential]::new('synthetic', [securestring]::new())
 $entryMode = 'Fail'
 $entryCalls = [Collections.Generic.List[string]]::new()
 function Import-Module { param($Name) if ($Name -ne 'Hyper-V') { throw 'Unexpected fixture module import.' } }
-function Get-VMNetworkAdapter { param($VM) @([pscustomobject]@{ Id = 'one'; SwitchId = 'switch'; SwitchName = 'switch' }) }
+function Get-VMNetworkAdapter { param($VM) @([PSCustomObject]@{ Id = 'one'; SwitchId = 'switch'; SwitchName = 'switch' }) }
 function Disconnect-VMNetworkAdapter { param($VMNetworkAdapter) $entryCalls.Add('disconnect') }
 function Connect-VMNetworkAdapter { param($VMNetworkAdapter, $SwitchName) $entryCalls.Add('restore') }
 function Stop-VM { param($VM, $Confirm) $entryCalls.Add('shutdown') }
@@ -208,7 +214,7 @@ function Invoke-TestVMCollection {
     if ($entryMode -eq 'Mismatch' -and $ReportName -like '*-repeat') { $report.areas.OptionalFeatures.data[0].state = 'Disabled' }
     $path = Join-Path $destination 'audit.json'
     Save-ComparisonFixture $report $path
-    [pscustomobject]@{ reportPath = $path; exitCode = $report.exitCode; summary = $report.summary }
+    [PSCustomObject]@{ reportPath = $path; exitCode = $report.exitCode; summary = $report.summary }
 }
 $operationPath = Join-Path $entryRoot '.local\workflows\test-vm\configured\operation.json'
 Assert-VMWorkflowFailure { & $entryPath -Action Audit -VMProfile Configured -Credential $credential -ReportName failure } 'Synthetic collection failure'
@@ -226,7 +232,7 @@ Assert-VMWorkflow (-not ($entryCalls -contains 'shutdown') -and -not ($entryCall
 Move-TestVMReports -Settings $entrySettings -Metadata $entryMetadata -Output (Join-Path $entryRoot '.local\vm-configured') -Reason 'before-stable-fixture' | Out-Null
 $entryMode = 'Match'; $entryCalls = [Collections.Generic.List[string]]::new()
 $fixtureSnapshots = [Collections.Generic.List[object]]::new()
-$fixtureDVD = [pscustomobject]@{ Path = 'synthetic.iso' }
+$fixtureDVD = [PSCustomObject]@{ Path = 'synthetic.iso' }
 function Get-VMSnapshot { param($VM) $fixtureSnapshots.ToArray() }
 function Get-VMDvdDrive { param($VM) $fixtureDVD }
 function Set-VMDvdDrive { param($VMDvdDrive, $Path) $VMDvdDrive.Path = $Path }
@@ -234,7 +240,7 @@ function Set-VMFirmware { param($VM, $FirstBootDevice) if ($args.Count) { throw 
 function Set-VMKeyProtector { throw 'An initialized key protector must never be changed.' }
 function Enable-VMTPM { throw 'An initialized TPM must never be reconfigured.' }
 function Stop-VM { param($VM, $Confirm) $VM.State = 'Off'; $entryCalls.Add('shutdown') }
-function Checkpoint-VM { param($VM, $SnapshotName) $fixtureSnapshots.Add([pscustomobject]@{ Id = 'audited'; Name = $SnapshotName }); $entryCalls.Add('checkpoint') }
+function Checkpoint-VM { param($VM, $SnapshotName) $fixtureSnapshots.Add([PSCustomObject]@{ Id = 'audited'; Name = $SnapshotName }); $entryCalls.Add('checkpoint') }
 & $entryPath -Action Capture -VMProfile Configured -Credential $credential | Out-Null
 $operation = Get-Content -LiteralPath $operationPath -Raw | ConvertFrom-Json
 Assert-VMWorkflow ($operation.status -eq 'Succeeded' -and $fixtureVM.State -eq 'Off' -and $null -eq $fixtureDVD.Path) 'Stable capture finishes with detached media and a powered-off guest.'
@@ -250,7 +256,7 @@ function New-VHD { param($Path, $SizeBytes, [switch]$Dynamic) Set-Content -Liter
 function Add-VMHardDiskDrive { param($VM, $ControllerType, $ControllerNumber, $ControllerLocation, $Path) $replacementCalls.Add('attach') }
 $fixtureDVD.Path = 'source.iso'
 Set-Content -LiteralPath $metadata.vhdPath -Value 'old synthetic disk'
-$drives = @([pscustomobject]@{ Path = $metadata.vhdPath; ControllerType = 'SCSI'; ControllerNumber = 0; ControllerLocation = 0 })
+$drives = @([PSCustomObject]@{ Path = $metadata.vhdPath; ControllerType = 'SCSI'; ControllerNumber = 0; ControllerLocation = 0 })
 Reset-TestVMSystemDisk -Settings $settings -Metadata $metadata -VM $vm -IsoPath 'source.iso'
 Assert-VMWorkflow (($replacementCalls -join ',') -eq 'detach,create,attach' -and (Get-Content -LiteralPath $metadata.vhdPath -Raw) -like 'new synthetic disk*') 'Reinstall replaces the owned base file while preserving initialized VM security.'
 $beforeDisk = Get-Content -LiteralPath $metadata.vhdPath -Raw
@@ -258,9 +264,9 @@ $replacementCalls.Clear()
 Reset-TestVMSystemDisk -Settings $settings -Metadata $metadata -VM $vm -IsoPath 'source.iso' -CheckOnly
 Assert-VMWorkflow ($replacementCalls.Count -eq 0 -and (Get-Content -LiteralPath $metadata.vhdPath -Raw) -ceq $beforeDisk) 'Reinstall preflight does not change the system disk.'
 
-function Get-VMProcessor { param($VM) [pscustomobject]@{ Count = 2; ExposeVirtualizationExtensions = $true } }
-function Get-VMMemory { param($VM) [pscustomobject]@{ Startup = 4GB; DynamicMemoryEnabled = $false } }
-$drives = @([pscustomobject]@{ Path = $entryMetadata.vhdPath; ControllerType = 'SCSI'; ControllerNumber = 0; ControllerLocation = 0 })
+function Get-VMProcessor { param($VM) [PSCustomObject]@{ Count = 2; ExposeVirtualizationExtensions = $true } }
+function Get-VMMemory { param($VM) [PSCustomObject]@{ Startup = 4GB; DynamicMemoryEnabled = $false } }
+$drives = @([PSCustomObject]@{ Path = $entryMetadata.vhdPath; ControllerType = 'SCSI'; ControllerNumber = 0; ControllerLocation = 0 })
 $diskMap.Remove($entryMetadata.vhdPath)
 & $entryPath -Action Inspect -VMProfile Configured | Out-Null
 $inspection = Get-Content -LiteralPath (Join-Path $entryRoot '.local\workflows\test-vm\configured\inspection.json') -Raw | ConvertFrom-Json
@@ -272,12 +278,12 @@ Assert-VMWorkflow ((Get-FileHash -LiteralPath $operationPath).Hash -ceq $beforeW
 # A missing Hyper-V system delta remains owned by its recorded controller and VM directory.
 $missingDelta = Join-Path $owned 'system_aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.avhdx'
 $resetAttachments = [Collections.Generic.List[object]]::new()
-$resetAttachments.Add([pscustomobject]@{ Path = $missingDelta; ControllerType = 'SCSI'; ControllerNumber = 0; ControllerLocation = 0 })
-$snapshotDrive = [pscustomobject]@{ Path = $metadata.vhdPath; ControllerType = 'SCSI'; ControllerNumber = 0; ControllerLocation = 0 }
+$resetAttachments.Add([PSCustomObject]@{ Path = $missingDelta; ControllerType = 'SCSI'; ControllerNumber = 0; ControllerLocation = 0 })
+$snapshotDrive = [PSCustomObject]@{ Path = $metadata.vhdPath; ControllerType = 'SCSI'; ControllerNumber = 0; ControllerLocation = 0 }
 function Get-VMHardDiskDrive { param($VM, $VMSnapshot) if ($VMSnapshot) { $snapshotDrive } else { $resetAttachments.ToArray() } }
 function Remove-VMHardDiskDrive { param($VMHardDiskDrive, $Confirm) $resetAttachments.Clear(); $replacementCalls.Add('detach') }
-function Add-VMHardDiskDrive { param($VM, $ControllerType, $ControllerNumber, $ControllerLocation, $Path) $resetAttachments.Add([pscustomobject]@{ Path = $Path; ControllerType = 'SCSI'; ControllerNumber = 0; ControllerLocation = 0 }); $replacementCalls.Add('attach') }
-$fixtureSnapshots.Add([pscustomobject]@{ Id = 'broken'; Name = 'broken-checkpoint' })
+function Add-VMHardDiskDrive { param($VM, $ControllerType, $ControllerNumber, $ControllerLocation, $Path) $resetAttachments.Add([PSCustomObject]@{ Path = $Path; ControllerType = 'SCSI'; ControllerNumber = 0; ControllerLocation = 0 }); $replacementCalls.Add('attach') }
+$fixtureSnapshots.Add([PSCustomObject]@{ Id = 'broken'; Name = 'broken-checkpoint' })
 $replacementCalls.Clear()
 $checkpointDeletes = [Collections.Generic.List[string]]::new()
 function Remove-VMSnapshot {
@@ -309,8 +315,8 @@ Assert-VMWorkflow ((Get-TestVMValidationWim -Settings $validationSettings) -ieq 
 Assert-VMWorkflowFailure { Get-TestVMValidationWim -Settings $validationSettings -Path (Join-Path $fixture 'missing.wim') } 'does not exist*prepare-source.ps1'
 
 $resetAttachments.Clear()
-$resetAttachments.Add([pscustomobject]@{ Path = $missingDelta; ControllerType = 'SCSI'; ControllerNumber = 0; ControllerLocation = 0 })
-$fixtureSnapshots.Add([pscustomobject]@{ Id = 'interrupted'; Name = 'interrupted-checkpoint' })
+$resetAttachments.Add([PSCustomObject]@{ Path = $missingDelta; ControllerType = 'SCSI'; ControllerNumber = 0; ControllerLocation = 0 })
+$fixtureSnapshots.Add([PSCustomObject]@{ Id = 'interrupted'; Name = 'interrupted-checkpoint' })
 function Remove-VMSnapshot {
     [CmdletBinding()]
     param([Parameter(ValueFromPipeline = $true)] $VMSnapshot, [switch] $Confirm)
@@ -336,10 +342,10 @@ foreach ($path in @($removalDirectory, $retainedDirectory, (Join-Path $removalRo
 $removalId = [guid]::NewGuid()
 $retainedId = [guid]::NewGuid()
 $removalMachines = [Collections.Generic.List[object]]::new()
-$removalVM = [pscustomobject]@{ Id = $removalId; Name = 'Synthetic-Configured'; Generation = 2; State = 'Off'; Path = $removalDirectory }
-$retainedVM = [pscustomobject]@{ Id = $retainedId; Name = 'Synthetic-Baseline'; Generation = 2; State = 'Off'; Path = $retainedDirectory }
+$removalVM = [PSCustomObject]@{ Id = $removalId; Name = 'Synthetic-Configured'; Generation = 2; State = 'Off'; Path = $removalDirectory }
+$retainedVM = [PSCustomObject]@{ Id = $retainedId; Name = 'Synthetic-Baseline'; Generation = 2; State = 'Off'; Path = $retainedDirectory }
 $removalMachines.Add($removalVM); $removalMachines.Add($retainedVM)
-$removalMetadata = [pscustomobject]@{ schemaVersion = 1; vmId = [string]$removalId; name = $removalVM.Name; directory = $removalDirectory; profile = 'Configured'; status = 'Created'; vhdPath = Join-Path $removalDirectory 'system.vhdx'; settings = @{ DiskBytes = 80GB }; isoPath = Join-Path $removalRoot 'source.iso' }
+$removalMetadata = [PSCustomObject]@{ schemaVersion = 1; vmId = [string]$removalId; name = $removalVM.Name; directory = $removalDirectory; profile = 'Configured'; status = 'Created'; vhdPath = Join-Path $removalDirectory 'system.vhdx'; settings = @{ DiskBytes = 80GB }; isoPath = Join-Path $removalRoot 'source.iso' }
 $removalSettings = @{ root = $removalRoot; directory = $removalDirectory; profile = 'Configured'; vm = @{ Name = $removalVM.Name } }
 $removalMetadata | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $removalDirectory 'vm.json') -Encoding UTF8
 Set-Content -LiteralPath $removalMetadata.vhdPath -Value 'synthetic disk'
@@ -349,14 +355,14 @@ $retainedReport = Join-Path $removalRoot '.local\vm-configured\evidence.json'
 Set-Content -LiteralPath $retainedReport -Value 'audit evidence'
 $seed = Join-Path $removalDirectory 'answer.iso'
 Set-Content -LiteralPath $seed -Value 'synthetic answer media'
-$removalDrive = [pscustomobject]@{ Path = $removalMetadata.vhdPath; ControllerType = 'SCSI'; ControllerNumber = 0; ControllerLocation = 0 }
+$removalDrive = [PSCustomObject]@{ Path = $removalMetadata.vhdPath; ControllerType = 'SCSI'; ControllerNumber = 0; ControllerLocation = 0 }
 $removalSnapshots = [Collections.Generic.List[object]]::new()
-$removalSnapshots.Add([pscustomobject]@{ Id = [guid]::NewGuid(); Name = 'synthetic-checkpoint' })
+$removalSnapshots.Add([PSCustomObject]@{ Id = [guid]::NewGuid(); Name = 'synthetic-checkpoint' })
 $extraRemovalDrives = @(); $foreignRemovalDrives = @(); $foreignRemovalMedia = @()
 $removeVMCalls = [Collections.Generic.List[string]]::new()
 $failUnregister = $false
 $removalDisks = @{ }
-$removalDisks[$removalMetadata.vhdPath] = [pscustomobject]@{ VhdType = 'Dynamic'; ParentPath = $null; Size = 80GB; Attached = $false }
+$removalDisks[$removalMetadata.vhdPath] = [PSCustomObject]@{ VhdType = 'Dynamic'; ParentPath = $null; Size = 80GB; Attached = $false }
 function Get-VM { [CmdletBinding()] param($Id) if ($Id) { $removalMachines.ToArray() | Where-Object { $_.Id -eq $Id } } else { $removalMachines.ToArray() } }
 function Get-VMSnapshot { param($VM) if ($VM.Id -eq $removalId) { $removalSnapshots.ToArray() } }
 function Get-VMHardDiskDrive { param($VM, $VMSnapshot) if ($VMSnapshot -or $VM.Id -eq $removalId) { @($removalDrive) + $extraRemovalDrives } else { $foreignRemovalDrives } }
@@ -373,18 +379,18 @@ Assert-VMWorkflowFailure { Remove-TestVMResources -Settings $removalSettings -Me
 $removalMetadata.vmId = [string][guid]::NewGuid()
 Assert-VMWorkflowFailure { Remove-TestVMResources -Settings $removalSettings -Metadata $removalMetadata -DiscardCheckpoints } 'not owned'
 $removalMetadata.vmId = [string]$removalId
-$extraRemovalDrives = @([pscustomobject]@{ Path = $removalMetadata.vhdPath; ControllerType = 'SCSI'; ControllerNumber = 0; ControllerLocation = 1 })
+$extraRemovalDrives = @([PSCustomObject]@{ Path = $removalMetadata.vhdPath; ControllerType = 'SCSI'; ControllerNumber = 0; ControllerLocation = 1 })
 Assert-VMWorkflowFailure { Remove-TestVMResources -Settings $removalSettings -Metadata $removalMetadata -DiscardCheckpoints } 'additional disks'
 $extraRemovalDrives = @()
 $foreignRemovalDrives = @($removalDrive)
 Assert-VMWorkflowFailure { Remove-TestVMResources -Settings $removalSettings -Metadata $removalMetadata -DiscardCheckpoints } 'Another VM references a disk'
 $foreignDisk = Join-Path $removalRoot 'foreign.vhdx'
 Set-Content -LiteralPath $foreignDisk -Value 'synthetic foreign child'
-$removalDisks[$foreignDisk] = [pscustomobject]@{ ParentPath = $removalMetadata.vhdPath }
-$foreignRemovalDrives = @([pscustomobject]@{ Path = $foreignDisk })
+$removalDisks[$foreignDisk] = [PSCustomObject]@{ ParentPath = $removalMetadata.vhdPath }
+$foreignRemovalDrives = @([PSCustomObject]@{ Path = $foreignDisk })
 Assert-VMWorkflowFailure { Remove-TestVMResources -Settings $removalSettings -Metadata $removalMetadata -DiscardCheckpoints } 'Another VM references a disk'
 $foreignRemovalDrives = @()
-$foreignRemovalMedia = @([pscustomobject]@{ Path = $seed })
+$foreignRemovalMedia = @([PSCustomObject]@{ Path = $seed })
 Assert-VMWorkflowFailure { Remove-TestVMResources -Settings $removalSettings -Metadata $removalMetadata -DiscardCheckpoints } 'Another VM references media'
 $foreignRemovalMedia = @()
 $removalDisks[$removalMetadata.vhdPath].Attached = $true
@@ -427,7 +433,7 @@ Set-Content -LiteralPath $seed -Value 'unowned data'
 Assert-VMWorkflowFailure { Remove-TestVMResources -Settings $removalSettings -Metadata $null } 'ownership metadata'
 Assert-VMWorkflow (Test-Path $seed) 'An unowned leftover directory is never deleted.'
 
-$baselineMetadata = [pscustomobject]@{ schemaVersion = 1; vmId = [string]$retainedId; name = $retainedVM.Name; directory = $retainedDirectory; status = 'Created'; vhdPath = Join-Path $retainedDirectory 'system.vhdx'; settings = @{ DiskBytes = 80GB } }
+$baselineMetadata = [PSCustomObject]@{ schemaVersion = 1; vmId = [string]$retainedId; name = $retainedVM.Name; directory = $retainedDirectory; status = 'Created'; vhdPath = Join-Path $retainedDirectory 'system.vhdx'; settings = @{ DiskBytes = 80GB } }
 $baselineSettings = @{ root = $removalRoot; directory = $retainedDirectory; profile = 'Baseline'; vm = @{ Name = $retainedVM.Name } }
 $baselineMetadata | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $retainedDirectory 'vm.json') -Encoding UTF8
 Remove-TestVMResources -Settings $baselineSettings -Metadata $baselineMetadata | Out-Null

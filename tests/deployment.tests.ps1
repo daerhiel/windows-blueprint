@@ -20,7 +20,7 @@ function Assert-Deployment {
 function New-FixtureDisk {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Creates an in-memory synthetic object without disk access.')]
     param([int] $Number, $Partitions = 0, [bool] $ReadOnly = $false, [bool] $Offline = $false)
-    [pscustomobject]@{ Number = $Number; NumberOfPartitions = $Partitions; IsReadOnly = $ReadOnly; IsOffline = $Offline }
+    [PSCustomObject]@{ Number = $Number; NumberOfPartitions = $Partitions; IsReadOnly = $ReadOnly; IsOffline = $Offline }
 }
 $only = New-FixtureDisk 3 4
 Assert-Deployment ((Get-DeploymentDisk @($only)).Number -eq 3) 'Use the actual number of the sole disk, including a previously partitioned disk.'

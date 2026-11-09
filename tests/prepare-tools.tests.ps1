@@ -76,7 +76,7 @@ function Get-AuthenticodeSignature {
     param([string] $LiteralPath)
     if (-not (Test-Path -LiteralPath $LiteralPath)) { throw 'Missing signature fixture input.' }
     $status = 'Valid'; if (-not $validSignature) { $status = 'NotTrusted' }
-    [pscustomobject]@{ Status = $status; SignerCertificate = [pscustomobject]@{ Subject = 'CN=Fixture, O=Microsoft Corporation, C=US' } }
+    [PSCustomObject]@{ Status = $status; SignerCertificate = [PSCustomObject]@{ Subject = 'CN=Fixture, O=Microsoft Corporation, C=US' } }
 }
 function Invoke-WebRequest {
     param([string] $Uri, [string] $OutFile, [switch] $UseBasicParsing)
@@ -87,7 +87,7 @@ function Invoke-WebRequest {
 }
 function Invoke-PreparationProcess {
     param([string] $Path, [string[]] $Arguments)
-    $processCalls.Add([pscustomobject]@{ path = $Path; arguments = $Arguments })
+    $processCalls.Add([PSCustomObject]@{ path = $Path; arguments = $Arguments })
     if ($Arguments -contains '/uninstall') {
         if ($uninstallFails) { throw 'Synthetic uninstall failure' }
         $toolName = 'Adk'
@@ -188,7 +188,7 @@ $nativeExit = 3010
 function Start-Process {
     param([string] $FilePath, [string[]] $ArgumentList, [string] $WindowStyle, [switch] $Wait, [switch] $PassThru)
     if ($FilePath -ne 'synthetic-installer.exe' -or $ArgumentList -notcontains '/norestart' -or $WindowStyle -ne 'Hidden' -or -not $Wait -or -not $PassThru) { throw 'Unexpected native process contract.' }
-    [pscustomobject]@{ ExitCode = $nativeExit }
+    [PSCustomObject]@{ ExitCode = $nativeExit }
 }
 Assert-ToolsFailure { & $nativeProcess -Path 'synthetic-installer.exe' -Arguments @('/quiet', '/norestart') } 'host restart'
 $nativeExit = 1603
@@ -200,9 +200,9 @@ Assert-ToolsTest ($downloadCalls.Count -gt 0 -and $processCalls.Count -gt 0) 'Al
 # Remove uses synthetic product registrations; no installed host package is queried or changed.
 function Get-PreparationHostProduct { param($Specification) $hostProducts[$Specification.name].ToArray() }
 [IO.Directory]::Delete($junction, $false)
-$hostProducts.Adk.Add([pscustomobject]@{ name = 'Windows Deployment Tools'; version = '10.1.12345.678'; kind = 'Component'; uninstaller = $null })
-$hostProducts.Adk.Add([pscustomobject]@{ name = 'Windows Assessment and Deployment Kit'; version = '10.1.12345.678'; kind = 'Bundle'; uninstaller = $null })
-$hostProducts.WinPE.Add([pscustomobject]@{ name = 'Windows PE Optional Packages'; version = '10.1.12345.678'; kind = 'Component'; uninstaller = $null })
+$hostProducts.Adk.Add([PSCustomObject]@{ name = 'Windows Deployment Tools'; version = '10.1.12345.678'; kind = 'Component'; uninstaller = $null })
+$hostProducts.Adk.Add([PSCustomObject]@{ name = 'Windows Assessment and Deployment Kit'; version = '10.1.12345.678'; kind = 'Bundle'; uninstaller = $null })
+$hostProducts.WinPE.Add([PSCustomObject]@{ name = 'Windows PE Optional Packages'; version = '10.1.12345.678'; kind = 'Component'; uninstaller = $null })
 $administrator = $false
 Assert-ToolsFailure { Invoke-ToolsFixture Remove Adk } 'elevated'
 $administrator = $true

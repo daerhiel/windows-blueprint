@@ -41,7 +41,7 @@ function Get-DeploymentLayout {
     if ($availableMiB -lt $windowsMiB) { throw 'The disk cannot fit the minimum Windows partition and service partitions.' }
     $dataMiB = 0L
     if ($availableMiB - $windowsMiB -ge $windowsMiB) { $dataMiB = $windowsMiB }
-    [pscustomobject]@{ WindowsMiB = $windowsMiB; DataMiB = $dataMiB; UnallocatedMiB = $availableMiB - $windowsMiB - $dataMiB }
+    [PSCustomObject]@{ WindowsMiB = $windowsMiB; DataMiB = $dataMiB; UnallocatedMiB = $availableMiB - $windowsMiB - $dataMiB }
 }
 
 function New-DeploymentAnswer {

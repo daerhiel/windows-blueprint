@@ -93,7 +93,13 @@ Assert-SourceTest ((Get-Content -LiteralPath (Join-Path $root '.local\workflows\
 $root = New-SourceFixture 'entry point'
 [IO.Directory]::CreateDirectory((Join-Path $root 'workflows')) | Out-Null
 $workflowSource = Get-Content -LiteralPath (Join-Path $repository 'workflows\prepare-source.ps1') -Raw
-$offset = $workflowSource.IndexOf("if (`$MyInvocation.InvocationName -eq '.') { return }")
+$entryGuard = @($ast.EndBlock.Statements | Where-Object {
+    $_ -is [Management.Automation.Language.IfStatementAst] -and $_.Clauses[0].Item1.Extent.Text -eq '$MyInvocation.InvocationName -eq ''.'''
+})
+if ($entryGuard.Count -ne 1) {
+    throw 'Expected one public entry-point guard.'
+}
+$offset = $entryGuard[0].Extent.StartOffset
 $entryPath = Join-Path $root 'workflows\prepare-source.ps1'
 ('[CmdletBinding()]' + [Environment]::NewLine + $ast.ParamBlock.Extent.Text + [Environment]::NewLine + $workflowSource.Substring($offset)) | Set-Content -LiteralPath $entryPath -Encoding UTF8
 & $entryPath -IsoPath (Join-Path $root 'source [test] & image.iso')

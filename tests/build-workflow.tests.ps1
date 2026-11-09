@@ -112,7 +112,13 @@ Assert-WorkflowTest (@($result.phases).Count -eq 1 -and $result.phases[0].name -
 $root = New-WorkflowFixture 'public entry point'
 [IO.Directory]::CreateDirectory((Join-Path $root 'workflows')) | Out-Null
 $workflowSource = Get-Content -LiteralPath $workflowPath -Raw
-$entryOffset = $workflowSource.IndexOf("if (`$MyInvocation.InvocationName -eq '.') { return }")
+$entryGuard = @($workflowAst.EndBlock.Statements | Where-Object {
+    $_ -is [Management.Automation.Language.IfStatementAst] -and $_.Clauses[0].Item1.Extent.Text -eq '$MyInvocation.InvocationName -eq ''.'''
+})
+if ($entryGuard.Count -ne 1) {
+    throw 'Expected one public entry-point guard.'
+}
+$entryOffset = $entryGuard[0].Extent.StartOffset
 $entryPath = Join-Path $root 'workflows\build.ps1'
 ('[CmdletBinding()]' + [Environment]::NewLine + $workflowAst.ParamBlock.Extent.Text + [Environment]::NewLine + $workflowSource.Substring($entryOffset)) | Set-Content -LiteralPath $entryPath -Encoding UTF8
 & $entryPath -IsoPath (Join-Path $root 'source image.iso') -Stage Image

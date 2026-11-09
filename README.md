@@ -9,7 +9,7 @@ The source image must match the deployment architecture selected in [windows.psd
 ## Principles
 
 - DISM and `autounattend.xml` handle image preparation and installation.
-- LGPO and idempotent PowerShell configure the installed system.
+- Selected local GPOs are compiled into the image; Windows applies them after installation.
 - An independent audit checks actual state and detects changes after updates.
 - System services and CBS packages are not manually stripped out.
 - Reproducibility means the same verifiable state from the same inputs. Byte-for-byte ISO identity is not currently a requirement.
@@ -29,8 +29,7 @@ The [deployment flow](docs/requirements.md#deployment-flow) adds automatic disk 
 
 The current [windows.psd1](config/windows.psd1) passed fresh-installation and post-update audits, including verification of referenced policy files. Generated reports identify the exact configuration verified. The observed paused deployment of a selected removed app was traced to a separate system-initiated acquisition request. Removing source-image provisioning does not block later online acquisition; the audit's absence checks continue to assess provisioning and installed registrations.
 
-[Requirements](docs/requirements.md) records accepted decisions and open questions.
-The [configuration guide](config/README.md) describes the initial profile and the captured component selection catalog.
+[Requirements](docs/requirements.md) records accepted decisions and open questions. The [design questions](docs/design-questions.md) preserve the original intent, unresolved maintenance questions, and current implementation boundaries without defining an implementation roadmap. The [configuration guide](config/README.md) describes the initial profile and the captured component selection catalog.
 
 The [component selection template](config/catalogs/pro-26300.9711/selections.psd1) contains the full exported component list for the selected image.
 

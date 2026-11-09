@@ -25,18 +25,18 @@ $remove = 'Example.Remove_1.0.0.0_neutral_~_8wekyb3d8bbwe'
 $keep = 'Example.Keep_1.0.0.0_neutral_~_8wekyb3d8bbwe'
 $config = @{ OptionalFeatures = @{ Virtualization = 'Enabled'; Legacy = 'Disabled' }; Capabilities = @{ 'Legacy~~~~0.0.1.0' = 'Absent' }; InboxApps = @{ $remove = 'Absent' } }
 $before = @{
-    OptionalFeatures = @([pscustomobject]@{ name = 'Virtualization'; state = 'Disabled' }, [pscustomobject]@{ name = 'Legacy'; state = 'Enabled' })
-    Capabilities     = @([pscustomobject]@{ name = 'Legacy~~~~0.0.1.0'; state = 'Installed' })
-    InboxApps        = @([pscustomobject]@{ name = $remove; state = 'Present' }, [pscustomobject]@{ name = $keep; state = 'Present' })
+    OptionalFeatures = @([PSCustomObject]@{ name = 'Virtualization'; state = 'Disabled' }, [PSCustomObject]@{ name = 'Legacy'; state = 'Enabled' })
+    Capabilities     = @([PSCustomObject]@{ name = 'Legacy~~~~0.0.1.0'; state = 'Installed' })
+    InboxApps        = @([PSCustomObject]@{ name = $remove; state = 'Present' }, [PSCustomObject]@{ name = $keep; state = 'Present' })
 }
 $manifests = @(
-    [pscustomobject]@{ name = 'Example.Remove'; framework = $false; resource = $false; dependencies = @(); dependencyFamilies = @() },
-    [pscustomobject]@{ name = 'Example.Keep'; framework = $false; resource = $false; dependencies = @(); dependencyFamilies = @() }
+    [PSCustomObject]@{ name = 'Example.Remove'; framework = $false; resource = $false; dependencies = @(); dependencyFamilies = @() },
+    [PSCustomObject]@{ name = 'Example.Keep'; framework = $false; resource = $false; dependencies = @(); dependencyFamilies = @() }
 )
 $plan = @(Get-ImageBuildPlan $config $before $manifests)
 Assert-BuildTest ($plan.Count -eq 4) 'Plan the feature changes, capability removal, and selected app only.'
 Assert-BuildTest (@($plan | Where-Object { $_.name -eq $keep }).Count -eq 0) 'Unselected apps must be retained.'
-$appResource = [pscustomobject]@{ name = 'Example.Remove'; framework = $false; resource = $true; dependencies = @(); dependencyFamilies = @() }
+$appResource = [PSCustomObject]@{ name = 'Example.Remove'; framework = $false; resource = $true; dependencies = @(); dependencyFamilies = @() }
 Assert-BuildTest (@(Get-ImageBuildPlan $config $before @($manifests + $appResource)).Count -eq 4) 'App-owned resources must be serviced with their parent app.'
 Assert-BuildException { Get-ImageBuildPlan $config $before @($manifests[1], $appResource) } 'Resources alone must not substitute for a main app manifest.'
 $config.OptionalFeatures['Missing'] = 'Disabled'
@@ -57,28 +57,28 @@ $manifests[0].framework = $false
 Assert-BuildException { Get-ImageBuildPlan $config $before @($manifests[1]) } 'Missing selected app manifests must block removal.'
 $store = 'Microsoft.WindowsStore_1.0.0.0_neutral_~_8wekyb3d8bbwe'
 $config.InboxApps[$store] = 'Absent'
-$before.InboxApps += [pscustomobject]@{ name = $store; state = 'Present' }
+$before.InboxApps += [PSCustomObject]@{ name = $store; state = 'Present' }
 Assert-BuildException { Get-ImageBuildPlan $config $before $manifests } 'Store must be protected even with an explicit removal rule.'
 $config.InboxApps.Remove($store)
 $before.InboxApps = @($before.InboxApps | Where-Object { $_.name -ne $store })
 $after = @{
-    OptionalFeatures = @([pscustomobject]@{ name = 'Virtualization'; state = 'EnablePending' }, [pscustomobject]@{ name = 'Legacy'; state = 'DisabledWithPayloadRemoved' })
-    Capabilities     = @([pscustomobject]@{ name = 'Legacy~~~~0.0.1.0'; state = 'NotPresent' })
-    InboxApps        = @([pscustomobject]@{ name = $keep; state = 'Present' })
+    OptionalFeatures = @([PSCustomObject]@{ name = 'Virtualization'; state = 'EnablePending' }, [PSCustomObject]@{ name = 'Legacy'; state = 'DisabledWithPayloadRemoved' })
+    Capabilities     = @([PSCustomObject]@{ name = 'Legacy~~~~0.0.1.0'; state = 'NotPresent' })
+    InboxApps        = @([PSCustomObject]@{ name = $keep; state = 'Present' })
 }
 $verification = @(Get-ImageBuildVerification $config $before $after)
 Assert-BuildTest (@($verification | Where-Object { -not $_.passed }).Count -eq 0) 'Configured offline states and retained apps must pass.'
 Assert-BuildTest (@($verification | Where-Object { $_.requiresFirstBoot }).Count -eq 1) 'Pending feature completion must require first-boot verification.'
 $after.InboxApps = @()
 Assert-BuildTest (@(Get-ImageBuildVerification $config $before $after | Where-Object { -not $_.passed -and $_.section -eq 'RetainedInboxApps' }).Count -eq 1) 'Unexpected removal of an unselected app must fail verification.'
-$after.InboxApps = @([pscustomobject]@{ name = $keep; state = 'Present' }, [pscustomobject]@{ name = $remove; state = 'Present' })
+$after.InboxApps = @([PSCustomObject]@{ name = $keep; state = 'Present' }, [PSCustomObject]@{ name = $remove; state = 'Present' })
 Assert-BuildTest (@(Get-ImageBuildVerification $config $before $after | Where-Object { -not $_.passed -and $_.name -eq $remove }).Count -eq 1) 'Remaining selected apps must fail verification.'
 $after.OptionalFeatures = @()
 Assert-BuildTest (@(Get-ImageBuildVerification $config $before $after | Where-Object { -not $_.passed -and $_.section -eq 'OptionalFeatures' }).Count -eq 2) 'Missing selected features must not be reported as disabled.'
 $config.Policies = @{
     Synthetic = @{ Path='HKLM:\SOFTWARE\Policies\Synthetic'; Name='Setting'; Kind='DWord'; Value=1; Editions=@('Professional'); Verification='LocalGpo' }
 }
-$after.LocalGpo = @{ Machine = @([pscustomobject]@{key='SOFTWARE\Policies\Synthetic'; name='Setting'; kind='DWord'; value=1}); User=@(); Metadata=@{Version='1'; gPCMachineExtensionNames='[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F72-3407-48AE-BA88-E8213C6761F1}]'} }
+$after.LocalGpo = @{ Machine = @([PSCustomObject]@{key='SOFTWARE\Policies\Synthetic'; name='Setting'; kind='DWord'; value=1}); User=@(); Metadata=@{Version='1'; gPCMachineExtensionNames='[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F72-3407-48AE-BA88-E8213C6761F1}]'} }
 Assert-BuildTest (@(Get-ImageBuildVerification $config $before $after | Where-Object { $_.section -eq 'Policies' -and $_.passed }).Count -eq 1) 'Offline local GPO entries and processing metadata must be verified.'
 $after.LocalGpo.Metadata.Version = '0'
 Assert-BuildTest (@(Get-ImageBuildVerification $config $before $after | Where-Object { $_.section -eq 'Policies' -and -not $_.passed }).Count -eq 1) 'A policy file without a nonzero scope version must fail image verification.'

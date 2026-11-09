@@ -2,6 +2,8 @@
 
 Status: initial user decisions recorded. "Not defined" indicates an open decision, not a default value. The initial configuration is stored in [`config/windows.psd1`](../config/windows.psd1); its selection rules are described in the [configuration guide](../config/README.md).
 
+[Design intent and open questions](design-questions.md) preserves unresolved ideas from the original discussion, current implementation boundaries, and decisions still needed about ongoing maintenance. Those entries are not additional accepted requirements or a delivery roadmap.
+
 ## Accepted decisions
 
 | Topic | Decision |
@@ -12,7 +14,7 @@ Status: initial user decisions recorded. "Not defined" indicates an open decisio
 | Installation type | Clean installation |
 | Configuration source | Git |
 | Preparation and installation | DISM and `autounattend.xml` |
-| Installed OS configuration | LGPO and idempotent PowerShell |
+| Policy delivery | Local GPOs compiled into the prepared image and processed by Windows after installation |
 | Result verification | Independent audit, including verification after updates |
 | System services and CBS packages | Manual stripping is excluded |
 | Portability | Use a generic base image; the first physical target is the current computer |

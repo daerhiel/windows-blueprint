@@ -4,6 +4,24 @@
 <#
 .SYNOPSIS
 Exports component catalogs from the pinned Windows image without servicing it.
+
+.DESCRIPTION
+Verifies the source and servicing-tool locks, exports the selected edition to pro.wim, and inventories it through a read-only mount. Writes the catalog, commented selection template, logs, and cleanup evidence to the owned output directory.
+
+.PARAMETER IsoPath
+Original Windows ISO matching the source lock.
+
+.PARAMETER OutputDirectory
+New owned catalog directory under .local/catalog.
+
+.PARAMETER SourceLockPath
+Source lock data file specifying the expected ISO and edition identity.
+
+.PARAMETER ToolchainLockPath
+Toolchain lock data file specifying the pinned servicing tools.
+
+.OUTPUTS
+None. Writes pro.wim, catalog.json, selections.psd1, logs, and the operation report.
 #>
 [CmdletBinding()]
 param(
@@ -24,23 +42,31 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $sourceLock = Get-Content -LiteralPath $SourceLockPath -Raw | ConvertFrom-Json
 $toolchainLock = Get-Content -LiteralPath $ToolchainLockPath -Raw | ConvertFrom-Json
+
 if ($null -eq $sourceLock.selectedImage) {
     throw 'Select and pin a source image before exporting a catalog.'
 }
+
 $isoFullPath = (Resolve-Path -LiteralPath $IsoPath).ProviderPath
 $outputFullPath = [IO.Path]::GetFullPath($OutputDirectory).TrimEnd('\')
 $catalogRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\.local\catalog'))
+
 if ([IO.Path]::GetDirectoryName($outputFullPath) -ine $catalogRoot) {
     throw 'OutputDirectory must be directly under the repository .local/catalog directory.'
 }
+
 foreach ($inputPath in @($isoFullPath, (Resolve-Path -LiteralPath $SourceLockPath).ProviderPath, (Resolve-Path -LiteralPath $ToolchainLockPath).ProviderPath)) {
-    if ($inputPath -ieq $outputFullPath -or $inputPath -ieq ($outputFullPath + '.lock') -or $inputPath.StartsWith($outputFullPath + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Source files must be outside the output directory and its lock file.' }
+    if ($inputPath -ieq $outputFullPath -or $inputPath -ieq ($outputFullPath + '.lock') -or $inputPath.StartsWith($outputFullPath + '\', [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Source files must be outside the output directory and its lock file.'
+    }
 }
+
 foreach ($checkedPath in @((Split-Path $catalogRoot -Parent), $catalogRoot, $outputFullPath, ($outputFullPath + '.lock'))) {
     if ((Test-Path -LiteralPath $checkedPath) -and ((Get-Item -LiteralPath $checkedPath -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
         throw 'Catalog paths must not contain reparse points.'
     }
 }
+
 [IO.Directory]::CreateDirectory($catalogRoot) | Out-Null
 $directoryLock = $null
 $outputPrepared = $false
@@ -63,35 +89,94 @@ $operation = [ordered]@{
 }
 
 function Save-Operation {
+    <#
+    .SYNOPSIS
+    Saves the current source-catalog export report.
+
+    .DESCRIPTION
+    Serializes the operation and report path from the enclosing catalog-export invocation.
+
+    .OUTPUTS
+    None. Updates the catalog operation.json file.
+    #>
+
     $operation | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $operationPath -Encoding UTF8
 }
 
 function Set-OperationStage {
+    <#
+    .SYNOPSIS
+    Records and announces the current catalog-export stage.
+
+    .DESCRIPTION
+    Updates the enclosing operation, saves its report, and writes a console progress message.
+
+    .PARAMETER Name
+    Human-readable name of the stage about to run.
+
+    .OUTPUTS
+    None. Updates the report and writes a host message.
+    #>
+
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSUseShouldProcessForStateChangingFunctions', '', Justification = 'Records required progress in the exporter-owned report; does not change the source image.')]
-    param([string] $Name)
+    param(
+        [string] $Name
+    )
+
     $operation.stage = $Name
     Save-Operation
     Write-WorkflowMessage ('Source: ' + $Name)
 }
 
 function Add-SelectionMap {
+    <#
+    .SYNOPSIS
+    Appends a commented selection map to a generated template.
+
+    .DESCRIPTION
+    Validates and sorts source identifiers before adding their observed state and description. Generated entries remain comments until explicitly selected.
+
+    .PARAMETER Lines
+    Mutable list of source lines for the generated selection data file.
+
+    .PARAMETER Name
+    Selection map name to write into the template.
+
+    .PARAMETER Entries
+    Source records containing Id, State, and Description fields.
+
+    .OUTPUTS
+    None. Appends lines to the supplied mutable list.
+    #>
+
     param(
         [Collections.Generic.List[string]] $Lines,
         [string] $Name,
         [object[]] $Entries
     )
+
     $orderedEntries = [Collections.Generic.SortedDictionary[string, object]]::new([StringComparer]::OrdinalIgnoreCase)
+
     foreach ($entry in $Entries) {
         $identifier = [string] $entry.Id
-        if ([string]::IsNullOrWhiteSpace($identifier) -or $identifier -match '[\r\n]') { throw 'Invalid component identifier.' }
-        if ($orderedEntries.ContainsKey($identifier)) { throw ('Duplicate component identifier: ' + $identifier) }
+
+        if ([string]::IsNullOrWhiteSpace($identifier) -or $identifier -match '[\r\n]') {
+            throw 'Invalid component identifier.'
+        }
+        if ($orderedEntries.ContainsKey($identifier)) {
+            throw ('Duplicate component identifier: ' + $identifier)
+        }
+
         $orderedEntries.Add($identifier, $entry)
     }
+
     $Lines.Add('    ' + $Name + ' = @{')
+
     foreach ($entry in $orderedEntries.Values) {
         $identifier = ([string] $entry.Id).Replace("'", "''")
         $Lines.Add("        # '" + $identifier + "' = '" + $entry.State + "' # " + $entry.Description)
     }
+
     $Lines.Add('    }')
 }
 
@@ -99,18 +184,24 @@ try {
     try {
         $directoryLock = [IO.FileStream]::new(($outputFullPath + '.lock'), [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None, 4096, [IO.FileOptions]::DeleteOnClose)
     }
-    catch { throw 'Another export is using this output directory.' }
+    catch {
+        throw 'Another export is using this output directory.'
+    }
+
     Write-WorkflowMessage 'Source: verifying the ISO fingerprint and pinned ADK files:' -Data $isoFullPath
+
     if ((Get-FileHash -LiteralPath $isoFullPath -Algorithm SHA256).Hash -ne $sourceLock.iso.sha256) {
         throw 'The ISO fingerprint does not match the source lock.'
     }
 
     $dismDirectory = $toolchainLock.adk.dismDirectory
+
     foreach ($toolFile in $toolchainLock.adk.files.PSObject.Properties) {
         if ((Get-FileHash -LiteralPath (Join-Path $dismDirectory $toolFile.Name) -Algorithm SHA256).Hash -ne $toolFile.Value) {
             throw ('Toolchain fingerprint mismatch: ' + $toolFile.Name)
         }
     }
+
     if (Get-Module Dism) {
         throw 'Run in a fresh Windows PowerShell process with -NoProfile.'
     }
@@ -125,31 +216,52 @@ public static class CatalogNativeLoader {
 }
 '@
     $nativeHandle = [CatalogNativeLoader]::LoadLibraryEx((Join-Path $dismDirectory 'dismapi.dll'), [IntPtr]::Zero, 8)
+
     if ($nativeHandle -eq [IntPtr]::Zero) {
         throw ('Cannot load the ADK native API: ' + [Runtime.InteropServices.Marshal]::GetLastWin32Error())
     }
+
     Import-Module (Join-Path $dismDirectory 'dism.psd1')
     Import-Module Storage
-    $loadedDismApi = @([Diagnostics.Process]::GetCurrentProcess().Modules | Where-Object { $_.ModuleName -ieq 'dismapi.dll' })
+    $loadedDismApi = @([Diagnostics.Process]::GetCurrentProcess().Modules | Where-Object {
+            $_.ModuleName -ieq 'dismapi.dll'
+        })
+
     if ($loadedDismApi.Count -ne 1 -or $loadedDismApi[0].FileName -ine (Join-Path $dismDirectory 'dismapi.dll')) {
         throw 'The process did not load the pinned ADK native API.'
     }
 
     $registeredMounts = @(Get-WindowsImage -Mounted)
+
     foreach ($registeredMount in $registeredMounts) {
         if ($registeredMount.Path -ieq $outputFullPath -or $registeredMount.Path.StartsWith($outputFullPath + '\', [StringComparison]::OrdinalIgnoreCase) -or $registeredMount.ImagePath.StartsWith($outputFullPath + '\', [StringComparison]::OrdinalIgnoreCase)) {
             throw 'A Windows image in this output directory is still mounted.'
         }
     }
+
     if (Test-Path -LiteralPath $outputFullPath) {
         $resolvedOutputPath = (Resolve-Path -LiteralPath $outputFullPath).ProviderPath
-        if ([IO.Path]::GetDirectoryName($resolvedOutputPath) -ine $catalogRoot) { throw 'Unsafe catalog cleanup path.' }
-        if (@(Get-ChildItem -LiteralPath $resolvedOutputPath -Force -Recurse | Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint }).Count -gt 0) { throw 'Catalog contents must not contain reparse points.' }
+
+        if ([IO.Path]::GetDirectoryName($resolvedOutputPath) -ine $catalogRoot) {
+            throw 'Unsafe catalog cleanup path.'
+        }
+
+        if (@(Get-ChildItem -LiteralPath $resolvedOutputPath -Force -Recurse | Where-Object {
+                    $_.Attributes -band [IO.FileAttributes]::ReparsePoint
+                }).Count -gt 0) {
+            throw 'Catalog contents must not contain reparse points.'
+        }
+
         Write-WorkflowMessage 'Source: replacing the guarded working directory:' -Data $resolvedOutputPath -Level Warning
         Remove-Item -LiteralPath $resolvedOutputPath -Recurse -Force
     }
+
     $outputDrive = [IO.DriveInfo]::new([IO.Path]::GetPathRoot($outputFullPath))
-    if ($outputDrive.AvailableFreeSpace -lt 20GB) { throw 'At least 20 GiB of free space is required on the output drive.' }
+
+    if ($outputDrive.AvailableFreeSpace -lt 20GB) {
+        throw 'At least 20 GiB of free space is required on the output drive.'
+    }
+
     [IO.Directory]::CreateDirectory($outputFullPath) | Out-Null
     $outputPrepared = $true
     Save-Operation
@@ -157,22 +269,32 @@ public static class CatalogNativeLoader {
     [IO.Directory]::CreateDirectory($scratchPath) | Out-Null
     Set-OperationStage 'Attach ISO'
     $diskImage = Get-DiskImage -ImagePath $isoFullPath
+
     if (-not $diskImage.Attached) {
         $diskImage = Mount-DiskImage -ImagePath $isoFullPath -StorageType ISO -Access ReadOnly -PassThru
         $createdIsoAttachment = $true
     }
+
     $sourceImages = @(
         foreach ($volume in @($diskImage | Get-Volume)) {
             if ($volume.DriveLetter) {
                 $candidate = Join-Path ('{0}:\' -f $volume.DriveLetter) $sourceLock.selectedImage.path
-                if (Test-Path -LiteralPath $candidate -PathType Leaf) { $candidate }
+
+                if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+                    $candidate
+                }
             }
         }
     )
-    if ($sourceImages.Count -ne 1) { throw 'Cannot locate the pinned installation image.' }
+
+    if ($sourceImages.Count -ne 1) {
+        throw 'Cannot locate the pinned installation image.'
+    }
+
     $sourceImage = $sourceImages[0]
     $imageInfo = Get-WindowsImage -ImagePath $sourceImage -Index $sourceLock.selectedImage.index -LogPath $dismLogPath -ScratchDirectory $scratchPath
     $imageVersion = '{0}.{1}.{2}.{3}' -f $imageInfo.MajorVersion, $imageInfo.MinorVersion, $imageInfo.Build, $imageInfo.SPBuild
+
     if ($imageInfo.EditionId -ne $sourceLock.selectedImage.editionId -or $imageInfo.Architecture -ne 9 -or $imageVersion -ne $sourceLock.selectedImage.version -or $imageInfo.Languages[$imageInfo.DefaultLanguageIndex] -ne $sourceLock.selectedImage.defaultLanguage) {
         throw 'The selected image metadata does not match the source lock.'
     }
@@ -193,7 +315,13 @@ public static class CatalogNativeLoader {
         })
     Set-OperationStage 'Read provisioned Appx'
     $apps = @(Get-AppxProvisionedPackage -Path $mountPath -LogPath $dismLogPath -ScratchDirectory $scratchPath | Sort-Object PackageName | ForEach-Object {
-            [ordered]@{ displayName = $_.DisplayName; packageName = $_.PackageName; version = [string] $_.Version; architecture = [string] $_.Architecture; dependencyReview = 'RequiredBeforeRemoval' }
+            [ordered]@{
+                displayName      = $_.DisplayName
+                packageName      = $_.PackageName
+                version          = [string] $_.Version
+                architecture     = [string] $_.Architecture
+                dependencyReview = 'RequiredBeforeRemoval'
+            }
         })
 
     Set-OperationStage 'Write catalog and selection template'
@@ -209,23 +337,49 @@ public static class CatalogNativeLoader {
     $catalog | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $outputFullPath 'catalog.json') -Encoding UTF8
     $featureEntries = @($features | ForEach-Object {
             $state = switch ($_.state) {
-                'Enabled' { 'Enabled' }
-                'Disabled' { 'Disabled' }
-                'DisabledWithPayloadRemoved' { 'Disabled' }
-                default { throw ('Unsupported source feature state: ' + $_.state) }
+                'Enabled' {
+                    'Enabled'
+                }
+                'Disabled' {
+                    'Disabled'
+                }
+                'DisabledWithPayloadRemoved' {
+                    'Disabled'
+                }
+                default {
+                    throw ('Unsupported source feature state: ' + $_.state)
+                }
             }
-            [pscustomobject]@{ Id = $_.name; State = $state; Description = 'Source state: ' + $_.state }
+            [PSCustomObject]@{
+                Id          = $_.name
+                State       = $state
+                Description = 'Source state: ' + $_.state
+            }
         })
     $capabilityEntries = @($capabilities | ForEach-Object {
             $state = switch ($_.state) {
-                'Installed' { 'Present' }
-                'NotPresent' { 'Absent' }
-                default { throw ('Unsupported source capability state: ' + $_.state) }
+                'Installed' {
+                    'Present'
+                }
+                'NotPresent' {
+                    'Absent'
+                }
+                default {
+                    throw ('Unsupported source capability state: ' + $_.state)
+                }
             }
-            [pscustomobject]@{ Id = $_.name; State = $state; Description = 'Source state: ' + $_.state }
+            [PSCustomObject]@{
+                Id          = $_.name
+                State       = $state
+                Description = 'Source state: ' + $_.state
+            }
         })
     $appEntries = @($apps | ForEach-Object {
-            [pscustomobject]@{ Id = $_.packageName; State = 'Present'; Description = 'Source: provisioned. Review dependencies before selecting Absent.' }
+            [PSCustomObject]@{
+                Id          = $_.packageName
+                State       = 'Present'
+                Description = 'Source: provisioned. Review dependencies before selecting Absent.'
+            }
         })
     $selectionLines = [Collections.Generic.List[string]]::new()
     $selectionLines.Add('# Source: ' + $sourceLock.selectedImage.name + ' ' + $imageVersion + ', ' + $sourceLock.selectedImage.architecture + ', ' + $sourceLock.selectedImage.defaultLanguage + '; source index ' + $sourceLock.selectedImage.index + '.')
@@ -240,7 +394,11 @@ public static class CatalogNativeLoader {
     $selectionPath = Join-Path $outputFullPath 'selections.psd1'
     [IO.File]::WriteAllLines($selectionPath, $selectionLines, [Text.UTF8Encoding]::new($false))
     Import-PowerShellDataFile -LiteralPath $selectionPath | Out-Null
-    $operation['counts'] = @{ optionalFeatures = $features.Count; capabilities = $capabilities.Count; provisionedApps = $apps.Count }
+    $operation['counts'] = @{
+        optionalFeatures = $features.Count
+        capabilities     = $capabilities.Count
+        provisionedApps  = $apps.Count
+    }
     $operation.status = 'Succeeded'
 }
 catch {
@@ -251,27 +409,49 @@ catch {
 finally {
     if ($createdWimMount) {
         Write-WorkflowMessage 'Source: unmounting the read-only working WIM.'
+
         try {
             Dismount-WindowsImage -Path $mountPath -Discard -LogPath $dismLogPath -ScratchDirectory $scratchPath | Out-Null
             $operation.unmountedImage = $true
         }
-        catch { $operation.cleanupErrors += $_.Exception.Message }
+        catch {
+            $operation.cleanupErrors += $_.Exception.Message
+        }
     }
+
     if ($createdIsoAttachment) {
         Write-WorkflowMessage 'Source: detaching the ISO attachment created by this export.'
+
         try {
             Dismount-DiskImage -ImagePath $isoFullPath | Out-Null
             $operation.detachedIso = $true
         }
-        catch { $operation.cleanupErrors += $_.Exception.Message }
+        catch {
+            $operation.cleanupErrors += $_.Exception.Message
+        }
     }
-    if ($operation.cleanupErrors.Count -gt 0) { $operation.status = 'Failed' }
+
+    if ($operation.cleanupErrors.Count -gt 0) {
+        $operation.status = 'Failed'
+    }
+
     $operation['completedAtUtc'] = [DateTime]::UtcNow.ToString('o')
-    try { if ($outputPrepared) { Save-Operation } }
-    finally { if ($null -ne $directoryLock) { $directoryLock.Dispose() } }
+
+    try {
+        if ($outputPrepared) {
+            Save-Operation
+        }
+    }
+    finally {
+        if ($null -ne $directoryLock) {
+            $directoryLock.Dispose()
+        }
+    }
 }
+
 if ($operation.status -ne 'Succeeded') {
     Write-Error ((@($operation.error) + @($operation.cleanupErrors)) -join [Environment]::NewLine) -ErrorAction Continue
     exit 1
 }
+
 Write-WorkflowMessage 'Source artifacts exported and cleanup completed:' -Data $outputFullPath -Level Success

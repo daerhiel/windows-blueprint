@@ -278,9 +278,9 @@ function Get-CimInstance {
     [CmdletBinding()]
     param([string] $ClassName)
     switch ($ClassName) {
-        'Win32_OperatingSystem' { [pscustomobject]@{ Version = '10.0.26300'; BuildNumber = '26300' } }
-        'Win32_Processor' { [pscustomobject]@{ Architecture = 9 } }
-        'Win32_Service' { [pscustomobject]@{ Name = 'Synthetic'; State = 'Stopped'; StartMode = 'Auto'; DelayedAutoStart = $true } }
+        'Win32_OperatingSystem' { [PSCustomObject]@{ Version = '10.0.26300'; BuildNumber = '26300' } }
+        'Win32_Processor' { [PSCustomObject]@{ Architecture = 9 } }
+        'Win32_Service' { [PSCustomObject]@{ Name = 'Synthetic'; State = 'Stopped'; StartMode = 'Auto'; DelayedAutoStart = $true } }
         default { throw 'Unexpected CIM query.' }
     }
 }
@@ -289,33 +289,33 @@ function Get-ItemProperty {
     [CmdletBinding()]
     param([string] $LiteralPath)
     if ($LiteralPath -ne 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion') { throw 'Unexpected registry query.' }
-    [pscustomobject]@{ EditionID = 'Professional'; UBR = 9711 }
+    [PSCustomObject]@{ EditionID = 'Professional'; UBR = 9711 }
 }
-function Get-WinUserLanguageList { [CmdletBinding()] param(); [pscustomobject]@{ LanguageTag = 'en-US'; InputMethodTips = @('0409:00000409') } }
-function Get-WinDefaultInputMethodOverride { [CmdletBinding()] param(); [pscustomobject]@{ InputMethodTip = '0419:00000419' } }
+function Get-WinUserLanguageList { [CmdletBinding()] param(); [PSCustomObject]@{ LanguageTag = 'en-US'; InputMethodTips = @('0409:00000409') } }
+function Get-WinDefaultInputMethodOverride { [CmdletBinding()] param(); [PSCustomObject]@{ InputMethodTip = '0419:00000419' } }
 function Get-WinUILanguageOverride { [CmdletBinding()] param(); $null }
 function Get-SystemPreferredUILanguage { [CmdletBinding()] [OutputType([string])] param(); 'en-US' }
 function Import-AuditDism { }
 function Get-WindowsOptionalFeature {
     [CmdletBinding()] param([switch] $Online, [string] $LogPath)
     if (-not $Online -or -not $LogPath.StartsWith($goodPath)) { throw 'Unexpected feature collection parameters.' }
-    [pscustomobject]@{ FeatureName = 'SyntheticFeature'; State = 'Enabled' }
+    [PSCustomObject]@{ FeatureName = 'SyntheticFeature'; State = 'Enabled' }
 }
 function Get-WindowsCapability {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '', Justification = 'Test double preserves the Windows API parameter contract.')]
     [CmdletBinding()] param([switch] $Online, [switch] $LimitAccess, [string] $LogPath)
     if (-not $Online -or -not $LimitAccess) { throw 'Capability collection must restrict source access.' }
-    [pscustomobject]@{ Name = 'Synthetic~~~~0.0.1.0'; State = 'Installed' }
+    [PSCustomObject]@{ Name = 'Synthetic~~~~0.0.1.0'; State = 'Installed' }
 }
 function Get-AppxProvisionedPackage {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '', Justification = 'Test double preserves the Windows API parameter contract.')]
     [CmdletBinding()] param([switch] $Online, [string] $LogPath)
-    [pscustomobject]@{ DisplayName = 'Synthetic.App'; PackageName = 'Synthetic.App_1.0.0.0_neutral_~_123456789abcd' }
+    [PSCustomObject]@{ DisplayName = 'Synthetic.App'; PackageName = 'Synthetic.App_1.0.0.0_neutral_~_123456789abcd' }
 }
 function Get-WindowsPackage {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '', Justification = 'Test double preserves the Windows API parameter contract.')]
     [CmdletBinding()] param([switch] $Online, [string] $LogPath)
-    [pscustomobject]@{ PackageName = 'SyntheticUpdate'; PackageState = 'InstallPending'; ReleaseType = 'SecurityUpdate' }
+    [PSCustomObject]@{ PackageName = 'SyntheticUpdate'; PackageState = 'InstallPending'; ReleaseType = 'SecurityUpdate' }
 }
 $script:appHasUsers = $true
 $script:appHasSid = $true
@@ -326,12 +326,12 @@ function Get-AppxPackage {
     if ($AllUsers -and $script:appHasUsers) {
         $fixtureSid = $null
         if ($script:appHasSid) { $fixtureSid = 'S-1-5-21-100-100-100-1000' }
-        $users = @([pscustomobject]@{ UserSecurityId = [pscustomobject]@{ Sid = $fixtureSid; Username = 'fixture' }; InstallState = 'Installed' })
+        $users = @([PSCustomObject]@{ UserSecurityId = [PSCustomObject]@{ Sid = $fixtureSid; Username = 'fixture' }; InstallState = 'Installed' })
     }
-    [pscustomobject]@{
+    [PSCustomObject]@{
         Name = 'Synthetic.App'; PackageFullName = 'Synthetic.App_1.0.0.0_x64__123456789abcd'; PackageFamilyName = 'Synthetic.App_123456789abcd'
         PackageUserInformation = $users; IsFramework = $false; IsResourcePackage = $false; Status = 'Ok'
-        Dependencies = @([pscustomobject]@{ PackageFullName = 'Synthetic.Framework_1.0.0.0_x64__123456789abcd' })
+        Dependencies = @([PSCustomObject]@{ PackageFullName = 'Synthetic.Framework_1.0.0.0_x64__123456789abcd' })
     }
 }
 function Read-AuditRegistryValue {
@@ -344,13 +344,13 @@ $auditConfig = Read-AuditConfiguration $configuration
 $rawOs = & $rawCollectors.Os $auditConfig $context $goodPath
 Assert-AuditTest ($rawOs.data.defaultInputLocale -eq 'ru-RU' -and $rawOs.data.defaultInputMethodTip -eq '0419:00000419') 'Default input method override must take precedence over the first language-list entry.'
 Assert-AuditTest ($rawOs.data.editionId -eq 'Professional' -and $rawOs.data.architecture -eq 'x64') 'OS projection must read the documented edition and native processor architecture.'
-function Get-WinDefaultInputMethodOverride { [CmdletBinding()] param(); [pscustomobject]@{ InputMethodTip = '0' } }
+function Get-WinDefaultInputMethodOverride { [CmdletBinding()] param(); [PSCustomObject]@{ InputMethodTip = '0' } }
 $rawOs = & $rawCollectors.Os $auditConfig $context $goodPath
 Assert-AuditTest ($rawOs.data.defaultInputLocale -eq 'en-US' -and $rawOs.data.defaultInputMethodTip -eq '0409:00000409' -and $rawOs.data.defaultInputMethodOverride -eq '0') 'A zero override must use the language-list default while preserving raw evidence.'
 function Get-WinDefaultInputMethodOverride { [CmdletBinding()] param(); $null }
 $rawOs = & $rawCollectors.Os $auditConfig $context $goodPath
 Assert-AuditTest ($rawOs.data.defaultInputLocale -eq 'en-US' -and $null -eq $rawOs.data.defaultInputMethodOverride) 'A missing override must use the language-list default.'
-function Get-WinUserLanguageList { [CmdletBinding()] param(); [pscustomobject]@{ LanguageTag = 'en-US'; InputMethodTips = '0409:00000409' } }
+function Get-WinUserLanguageList { [CmdletBinding()] param(); [PSCustomObject]@{ LanguageTag = 'en-US'; InputMethodTips = '0409:00000409' } }
 $rawOs = & $rawCollectors.Os $auditConfig $context $goodPath
 Assert-AuditTest ($rawOs.data.defaultInputLocale -eq 'en-US' -and $rawOs.data.defaultInputMethodTip -eq '0409:00000409') 'A scalar input-method string must not be indexed as individual characters.'
 $rawApps = & $rawCollectors.RegisteredApps $auditConfig $context $goodPath
